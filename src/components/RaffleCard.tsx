@@ -88,7 +88,7 @@ export const RaffleCard: React.FC<RaffleCardProps> = ({ raffle }) => {
           </div>
         </div>
         
-        <Link to={`/raffles/${raffle.id}`}>
+        <Link to={`/rifas/${raffle.id}`}>
           <Button fullWidth>Ver Detalhes</Button>
         </Link>
       </div>

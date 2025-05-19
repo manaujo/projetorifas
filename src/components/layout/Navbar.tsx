@@ -12,14 +12,6 @@ export const Navbar: React.FC = () => {
   
   const toggleMenu = () => setMenuOpen(!menuOpen);
   const closeMenu = () => setMenuOpen(false);
-
-  const scrollToSection = (id: string) => {
-    const element = document.getElementById(id);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-      closeMenu();
-    }
-  };
   
   return (
     <header className="bg-white shadow-sm fixed w-full top-0 z-50">
@@ -52,30 +44,46 @@ export const Navbar: React.FC = () => {
             >
               Rifas
             </Link>
-            <button
-              onClick={() => scrollToSection('sobre-nos')}
-              className={`px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-100`}
+            <Link
+              to="/sobre"
+              className={`px-3 py-2 rounded-md text-sm font-medium ${
+                location.pathname === '/sobre' 
+                  ? 'text-primary-600 bg-primary-50' 
+                  : 'text-gray-700 hover:text-primary-600 hover:bg-gray-100'
+              }`}
             >
               Sobre Nós
-            </button>
-            <button
-              onClick={() => scrollToSection('faq')}
-              className={`px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-100`}
+            </Link>
+            <Link
+              to="/faq"
+              className={`px-3 py-2 rounded-md text-sm font-medium ${
+                location.pathname === '/faq' 
+                  ? 'text-primary-600 bg-primary-50' 
+                  : 'text-gray-700 hover:text-primary-600 hover:bg-gray-100'
+              }`}
             >
               FAQ
-            </button>
-            <button
-              onClick={() => scrollToSection('planos')}
-              className={`px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-100`}
+            </Link>
+            <Link
+              to="/precos"
+              className={`px-3 py-2 rounded-md text-sm font-medium ${
+                location.pathname === '/precos' 
+                  ? 'text-primary-600 bg-primary-50' 
+                  : 'text-gray-700 hover:text-primary-600 hover:bg-gray-100'
+              }`}
             >
               Preços
-            </button>
-            <button
-              onClick={() => scrollToSection('contato')}
-              className={`px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-100`}
+            </Link>
+            <Link
+              to="/contato"
+              className={`px-3 py-2 rounded-md text-sm font-medium ${
+                location.pathname === '/contato' 
+                  ? 'text-primary-600 bg-primary-50' 
+                  : 'text-gray-700 hover:text-primary-600 hover:bg-gray-100'
+              }`}
             >
               Contato
-            </button>
+            </Link>
           </nav>
           
           <div className="hidden md:flex items-center space-x-4">
@@ -142,42 +150,46 @@ export const Navbar: React.FC = () => {
                   Rifas
                 </div>
               </Link>
-              <button
-                onClick={() => scrollToSection('sobre-nos')}
-                className="w-full block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-100 text-left"
+              <Link
+                to="/sobre"
+                className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-100"
+                onClick={closeMenu}
               >
                 <div className="flex items-center">
                   <Gift size={18} className="mr-2" />
                   Sobre Nós
                 </div>
-              </button>
-              <button
-                onClick={() => scrollToSection('faq')}
-                className="w-full block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-100 text-left"
+              </Link>
+              <Link
+                to="/faq"
+                className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-100"
+                onClick={closeMenu}
               >
                 <div className="flex items-center">
                   <PlusCircle size={18} className="mr-2" />
                   FAQ
                 </div>
-              </button>
-              <button
-                onClick={() => scrollToSection('planos')}
-                className="w-full block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-100 text-left"
+              </Link>
+              <Link
+                to="/precos"
+                className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-100"
+                onClick={closeMenu}
               >
                 <div className="flex items-center">
                   <Ticket size={18} className="mr-2" />
                   Preços
                 </div>
-              </button>
-              <button
-                onClick={() => scrollToSection('contato')}
-                className="w-full block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-100 text-left"
+              </Link>
+              <Link
+                to="/contato"
+                className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-100"
+                onClick={closeMenu}
               >
                 <div className="flex items-center">
                   <User size={18} className="mr-2" />
                   Contato
                 </div>
-              </button>
+              </Link>
             </div>
 
             <div className="mt-3 px-2 space-y-1">

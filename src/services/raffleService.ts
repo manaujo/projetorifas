@@ -51,14 +51,12 @@ const mockTickets: Ticket[] = [];
 
 // Get all raffles
 export const getRaffles = async (): Promise<Raffle[]> => {
-  // Simulating API call delay
   await new Promise(resolve => setTimeout(resolve, 500));
   return [...mockRaffles];
 };
 
 // Get raffle by ID
 export const getRaffleById = async (id: string): Promise<Raffle | null> => {
-  // Simulating API call delay
   await new Promise(resolve => setTimeout(resolve, 300));
   const raffle = mockRaffles.find(r => r.id === id);
   return raffle || null;
@@ -66,7 +64,6 @@ export const getRaffleById = async (id: string): Promise<Raffle | null> => {
 
 // Create a new raffle
 export const createRaffle = async (raffleData: Omit<Raffle, 'id' | 'createdAt' | 'soldNumbers'>): Promise<Raffle> => {
-  // Simulating API call delay
   await new Promise(resolve => setTimeout(resolve, 800));
   
   const newRaffle: Raffle = {
@@ -82,7 +79,6 @@ export const createRaffle = async (raffleData: Omit<Raffle, 'id' | 'createdAt' |
 
 // Get raffle numbers status
 export const getRaffleNumbers = async (raffleId: string): Promise<RaffleNumber[]> => {
-  // Simulating API call delay
   await new Promise(resolve => setTimeout(resolve, 400));
   
   const raffle = mockRaffles.find(r => r.id === raffleId);
@@ -109,7 +105,6 @@ export const purchaseTickets = async (
   selectedNumbers: number[], 
   paymentMethod: 'pix' | 'credit_card'
 ): Promise<Ticket> => {
-  // Simulating API call delay
   await new Promise(resolve => setTimeout(resolve, 1000));
   
   const raffle = mockRaffles.find(r => r.id === raffleId);
@@ -149,16 +144,12 @@ export const purchaseTickets = async (
 
 // Get user tickets
 export const getUserTickets = async (userId: string): Promise<Ticket[]> => {
-  // Simulating API call delay
   await new Promise(resolve => setTimeout(resolve, 600));
-  
   return mockTickets.filter(ticket => ticket.userId === userId);
 };
 
 // Get raffle creator's raffles
 export const getUserRaffles = async (userId: string): Promise<Raffle[]> => {
-  // Simulating API call delay
   await new Promise(resolve => setTimeout(resolve, 500));
-  
   return mockRaffles.filter(raffle => raffle.createdBy === userId);
 };
