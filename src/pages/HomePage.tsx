@@ -1,14 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Ticket, Users, Zap, Shield, ArrowRight, Search } from 'lucide-react';
-import { Layout } from '../components/layout/Layout';
-import { Button } from '../components/ui/Button';
-import { RaffleCard } from '../components/RaffleCard';
-import { PricingSection } from '../components/pricing/PricingSection';
-import { AboutSection } from '../components/about/AboutSection';
-import { Raffle } from '../types';
-import { getRaffles } from '../services/raffleService';
+import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
+import { Ticket, Users, Zap, Shield, ArrowRight, Search } from "lucide-react";
+import { Layout } from "../components/layout/Layout";
+import { Button } from "../components/ui/Button";
+import { RaffleCard } from "../components/RaffleCard";
+import { PricingSection } from "../components/pricing/PricingSection";
+import { AboutSection } from "../components/about/AboutSection";
+import { Raffle } from "../types";
+import { getRaffles } from "../services/raffleService";
+import Img from "../assets/c0b098c0-29eb-447e-b616-1fdf7002095e.png";
 
 export const HomePage: React.FC = () => {
   const [activeRaffles, setActiveRaffles] = useState<Raffle[]>([]);
@@ -18,9 +19,11 @@ export const HomePage: React.FC = () => {
     const fetchRaffles = async () => {
       try {
         const raffles = await getRaffles();
-        setActiveRaffles(raffles.filter(raffle => raffle.status === 'active'));
+        setActiveRaffles(
+          raffles.filter((raffle) => raffle.status === "active")
+        );
       } catch (error) {
-        console.error('Failed to fetch raffles', error);
+        console.error("Failed to fetch raffles", error);
       } finally {
         setIsLoading(false);
       }
@@ -32,7 +35,7 @@ export const HomePage: React.FC = () => {
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id);
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
+      element.scrollIntoView({ behavior: "smooth" });
     }
   };
 
@@ -42,7 +45,7 @@ export const HomePage: React.FC = () => {
       <section className="bg-primary-500 text-white pt-16 pb-24 md:pt-20 md:pb-32">
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row items-center">
-            <motion.div 
+            <motion.div
               className="md:w-1/2 mb-8 md:mb-0"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -52,12 +55,12 @@ export const HomePage: React.FC = () => {
                 Transformando sua sorte em grandes conquistas
               </h1>
               <p className="text-lg mb-6 text-primary-100 max-w-xl">
-                Participe de rifas online de forma segura e confiável. 
-                Ganhe prêmios incríveis ou crie sua própria campanha.
+                Participe de rifas online de forma segura e confiável. Ganhe
+                prêmios incríveis ou crie sua própria campanha.
               </p>
               <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
                 <Link to="/rifas">
-                  <Button 
+                  <Button
                     size="lg"
                     variant="secondary"
                     rightIcon={<ArrowRight size={16} />}
@@ -66,7 +69,7 @@ export const HomePage: React.FC = () => {
                   </Button>
                 </Link>
                 <Link to="/nova-rifa">
-                  <Button 
+                  <Button
                     size="lg"
                     variant="outline"
                     className="border-white text-white hover:bg-white hover:text-primary-500"
@@ -76,24 +79,24 @@ export const HomePage: React.FC = () => {
                 </Link>
               </div>
             </motion.div>
-            
-            <motion.div 
+
+            <motion.div
               className="md:w-1/2 flex justify-center"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
             >
-              <img 
-                src="https://images.pexels.com/photos/7413915/pexels-photo-7413915.jpeg" 
-                alt="Prêmios de rifa" 
-                className="rounded-lg shadow-xl max-w-full h-auto" 
-                style={{ maxHeight: '400px' }}
+              <img
+                src={Img}
+                alt="Prêmios de rifa"
+                className="rounded-lg shadow-xl max-w-full h-auto"
+                style={{ maxHeight: "400px" }}
               />
             </motion.div>
           </div>
         </div>
       </section>
-      
+
       {/* Features Section */}
       <section className="py-16 bg-white">
         <div className="container mx-auto px-4">
@@ -102,12 +105,13 @@ export const HomePage: React.FC = () => {
               Por que escolher a Rifativa?
             </h2>
             <p className="text-gray-600 max-w-2xl mx-auto">
-              A melhor plataforma para criação e participação em rifas online com segurança, transparência e facilidade.
+              A melhor plataforma para criação e participação em rifas online
+              com segurança, transparência e facilidade.
             </p>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <motion.div 
+            <motion.div
               className="bg-white p-6 rounded-lg shadow-soft hover:shadow-card transition-shadow duration-300"
               whileHover={{ y: -5 }}
               initial={{ opacity: 0, y: 20 }}
@@ -117,13 +121,16 @@ export const HomePage: React.FC = () => {
               <div className="w-12 h-12 bg-primary-50 rounded-full flex items-center justify-center text-primary-500 mb-4">
                 <Shield size={24} />
               </div>
-              <h3 className="font-display font-semibold text-lg text-gray-900 mb-2">100% Seguro</h3>
+              <h3 className="font-display font-semibold text-lg text-gray-900 mb-2">
+                100% Seguro
+              </h3>
               <p className="text-gray-600 text-sm">
-                Plataforma com criptografia de ponta a ponta e políticas rígidas de proteção ao usuário.
+                Plataforma com criptografia de ponta a ponta e políticas rígidas
+                de proteção ao usuário.
               </p>
             </motion.div>
-            
-            <motion.div 
+
+            <motion.div
               className="bg-white p-6 rounded-lg shadow-soft hover:shadow-card transition-shadow duration-300"
               whileHover={{ y: -5 }}
               initial={{ opacity: 0, y: 20 }}
@@ -133,13 +140,16 @@ export const HomePage: React.FC = () => {
               <div className="w-12 h-12 bg-primary-50 rounded-full flex items-center justify-center text-primary-500 mb-4">
                 <Zap size={24} />
               </div>
-              <h3 className="font-display font-semibold text-lg text-gray-900 mb-2">Rápido & Fácil</h3>
+              <h3 className="font-display font-semibold text-lg text-gray-900 mb-2">
+                Rápido & Fácil
+              </h3>
               <p className="text-gray-600 text-sm">
-                Crie ou participe de rifas em minutos, com interface intuitiva e pagamentos instantâneos.
+                Crie ou participe de rifas em minutos, com interface intuitiva e
+                pagamentos instantâneos.
               </p>
             </motion.div>
-            
-            <motion.div 
+
+            <motion.div
               className="bg-white p-6 rounded-lg shadow-soft hover:shadow-card transition-shadow duration-300"
               whileHover={{ y: -5 }}
               initial={{ opacity: 0, y: 20 }}
@@ -149,13 +159,16 @@ export const HomePage: React.FC = () => {
               <div className="w-12 h-12 bg-primary-50 rounded-full flex items-center justify-center text-primary-500 mb-4">
                 <Ticket size={24} />
               </div>
-              <h3 className="font-display font-semibold text-lg text-gray-900 mb-2">Sorteios Verificados</h3>
+              <h3 className="font-display font-semibold text-lg text-gray-900 mb-2">
+                Sorteios Verificados
+              </h3>
               <p className="text-gray-600 text-sm">
-                Sorteios baseados em loterias oficiais ou algoritmos verificáveis para máxima transparência.
+                Sorteios baseados em loterias oficiais ou algoritmos
+                verificáveis para máxima transparência.
               </p>
             </motion.div>
-            
-            <motion.div 
+
+            <motion.div
               className="bg-white p-6 rounded-lg shadow-soft hover:shadow-card transition-shadow duration-300"
               whileHover={{ y: -5 }}
               initial={{ opacity: 0, y: 20 }}
@@ -165,9 +178,12 @@ export const HomePage: React.FC = () => {
               <div className="w-12 h-12 bg-primary-50 rounded-full flex items-center justify-center text-primary-500 mb-4">
                 <Users size={24} />
               </div>
-              <h3 className="font-display font-semibold text-lg text-gray-900 mb-2">Comunidade Confiável</h3>
+              <h3 className="font-display font-semibold text-lg text-gray-900 mb-2">
+                Comunidade Confiável
+              </h3>
               <p className="text-gray-600 text-sm">
-                Milhares de usuários satisfeitos e campanhas bem-sucedidas em nossa plataforma.
+                Milhares de usuários satisfeitos e campanhas bem-sucedidas em
+                nossa plataforma.
               </p>
             </motion.div>
           </div>
@@ -176,10 +192,10 @@ export const HomePage: React.FC = () => {
 
       {/* About Section */}
       <AboutSection />
-      
+
       {/* Pricing Section */}
       <PricingSection />
-      
+
       {/* Active Raffles Section */}
       <section className="py-16 bg-gray-50">
         <div className="container mx-auto px-4">
@@ -194,20 +210,20 @@ export const HomePage: React.FC = () => {
             </div>
             <div className="mt-4 md:mt-0">
               <Link to="/rifas">
-                <Button
-                  variant="outline"
-                  rightIcon={<ArrowRight size={16} />}
-                >
+                <Button variant="outline" rightIcon={<ArrowRight size={16} />}>
                   Ver Todas as Rifas
                 </Button>
               </Link>
             </div>
           </div>
-          
+
           {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-pulse">
               {[1, 2, 3].map((item) => (
-                <div key={item} className="bg-white rounded-lg overflow-hidden shadow-card">
+                <div
+                  key={item}
+                  className="bg-white rounded-lg overflow-hidden shadow-card"
+                >
                   <div className="h-48 bg-gray-300"></div>
                   <div className="p-4">
                     <div className="h-6 bg-gray-300 rounded mb-3"></div>
@@ -220,7 +236,7 @@ export const HomePage: React.FC = () => {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {activeRaffles.map((raffle) => (
-                <motion.div 
+                <motion.div
                   key={raffle.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -233,7 +249,7 @@ export const HomePage: React.FC = () => {
           )}
         </div>
       </section>
-      
+
       {/* CTA Section */}
       <section className="py-16 bg-primary-500 text-white">
         <div className="container mx-auto px-4 text-center">
@@ -241,19 +257,17 @@ export const HomePage: React.FC = () => {
             Pronto para criar sua própria campanha?
           </h2>
           <p className="text-primary-100 mb-8 max-w-2xl mx-auto">
-            Crie uma rifa para seu produto ou para uma causa beneficente. É rápido, fácil e seguro!
+            Crie uma rifa para seu produto ou para uma causa beneficente. É
+            rápido, fácil e seguro!
           </p>
           <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 justify-center">
             <Link to="/nova-rifa">
-              <Button 
-                size="lg" 
-                variant="secondary"
-              >
+              <Button size="lg" variant="secondary">
                 Criar Minha Rifa
               </Button>
             </Link>
             <button
-              onClick={() => scrollToSection('sobre-nos')}
+              onClick={() => scrollToSection("sobre-nos")}
               className="inline-flex items-center justify-center px-6 py-3 border-2 border-white text-white hover:bg-white hover:text-primary-500 font-medium rounded-md transition-colors duration-200"
             >
               Como Funciona
@@ -261,7 +275,7 @@ export const HomePage: React.FC = () => {
           </div>
         </div>
       </section>
-      
+
       {/* Search Banner */}
       <section className="py-14 bg-gray-100">
         <div className="container mx-auto px-4">
