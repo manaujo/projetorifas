@@ -7,6 +7,7 @@ import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
 import { RafflePage } from './pages/RafflePage';
 import { DashboardPage } from './pages/DashboardPage';
+import { CreateRafflePage } from './pages/CreateRafflePage';
 
 // Protected route wrapper
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -33,10 +34,16 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/rifas" element={<Navigate to="/rifas/disponiveis" />} />
           <Route path="/rifas/:id" element={<RafflePage />} />
-          <Route path="/nova-rifa" element={<Navigate to="/dashboard/nova-rifa" />} />
-          <Route path="/convidar" element={<Navigate to="/dashboard/convidar" />} />
           
           {/* Protected routes */}
+          <Route 
+            path="/criar-rifa" 
+            element={
+              <ProtectedRoute>
+                <CreateRafflePage />
+              </ProtectedRoute>
+            } 
+          />
           <Route 
             path="/dashboard/*" 
             element={

@@ -1,19 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { LayoutGrid, Ticket, Settings, PlusCircle, CreditCard, Users, Award } from 'lucide-react';
 import { Layout } from '../components/layout/Layout';
 import { Button } from '../components/ui/Button';
 import { RaffleCard } from '../components/RaffleCard';
+import { ShareModal } from '../components/ShareModal';
 import { Raffle, Ticket as TicketType } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserRaffles, getUserTickets, getRaffleById } from '../services/raffleService';
 
 export const DashboardPage: React.FC = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'overview' | 'myRaffles' | 'myTickets' | 'account'>('overview');
   const [userRaffles, setUserRaffles] = useState<Raffle[]>([]);
   const [userTickets, setUserTickets] = useState<(TicketType & { raffle: Raffle | null })[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -22,14 +25,11 @@ export const DashboardPage: React.FC = () => {
       try {
         setIsLoading(true);
         
-        // Fetch raffles created by the user
         const raffles = await getUserRaffles(user.id);
         setUserRaffles(raffles);
         
-        // Fetch tickets purchased by the user
         const tickets = await getUserTickets(user.id);
         
-        // For each ticket, fetch the associated raffle data
         const ticketsWithRaffles = await Promise.all(
           tickets.map(async (ticket) => {
             const raffle = await getRaffleById(ticket.raffleId);
@@ -49,8 +49,20 @@ export const DashboardPage: React.FC = () => {
   }, [user]);
 
   if (!user) {
-    return null; // Handled by router auth protection
+    return null;
   }
+
+  const handleCreateRaffle = () => {
+    navigate('/criar-rifa');
+  };
+
+  const handleBrowseRaffles = () => {
+    navigate('/rifas');
+  };
+
+  const handleInviteFriends = () => {
+    setIsShareModalOpen(true);
+  };
 
   return (
     <Layout>
@@ -190,32 +202,29 @@ export const DashboardPage: React.FC = () => {
                       Ações Rápidas
                     </h3>
                     <div className="space-y-3">
-                      <Link to="/create-raffle">
-                        <Button 
-                          fullWidth
-                          leftIcon={<PlusCircle size={16} />}
-                        >
-                          Criar Nova Rifa
-                        </Button>
-                      </Link>
-                      <Link to="/raffles">
-                        <Button 
-                          fullWidth
-                          variant="outline"
-                          leftIcon={<Ticket size={16} />}
-                        >
-                          Participar de Rifas
-                        </Button>
-                      </Link>
-                      <Link to="/dashboard/profile">
-                        <Button 
-                          fullWidth
-                          variant="ghost"
-                          leftIcon={<Users size={16} />}
-                        >
-                          Convidar Amigos
-                        </Button>
-                      </Link>
+                      <Button 
+                        fullWidth
+                        leftIcon={<PlusCircle size={16} />}
+                        onClick={handleCreateRaffle}
+                      >
+                        Criar Nova Rifa
+                      </Button>
+                      <Button 
+                        fullWidth
+                        variant="outline"
+                        leftIcon={<Ticket size={16} />}
+                        onClick={handleBrowseRaffles}
+                      >
+                        Participar de Rifas
+                      </Button>
+                      <Button 
+                        fullWidth
+                        variant="ghost"
+                        leftIcon={<Users size={16} />}
+                        onClick={handleInviteFriends}
+                      >
+                        Convidar Amigos
+                      </Button>
                     </div>
                   </div>
                   
@@ -511,6 +520,13 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <ShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        url={window.location.origin}
+        title="Participe das melhores rifas online na Rifativa!"
+      />
     </Layout>
   );
 };
