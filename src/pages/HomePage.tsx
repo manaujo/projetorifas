@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Ticket, Users, Zap, Shield, ArrowRight, Search } from "lucide-react";
 import { Layout } from "../components/layout/Layout";
@@ -9,9 +9,12 @@ import { PricingSection } from "../components/pricing/PricingSection";
 import { AboutSection } from "../components/about/AboutSection";
 import { Raffle } from "../types";
 import { getRaffles } from "../services/raffleService";
+import { useAuth } from "../contexts/AuthContext";
 import Img from "../assets/c0b098c0-29eb-447e-b616-1fdf7002095e.png";
 
 export const HomePage: React.FC = () => {
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const [activeRaffles, setActiveRaffles] = useState<Raffle[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -31,6 +34,14 @@ export const HomePage: React.FC = () => {
 
     fetchRaffles();
   }, []);
+
+  const handleCreateRaffle = () => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    navigate('/criar-rifa');
+  };
 
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id);
@@ -59,24 +70,22 @@ export const HomePage: React.FC = () => {
                 prêmios incríveis ou crie sua própria campanha.
               </p>
               <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
-                <Link to="/rifas">
-                  <Button
-                    size="lg"
-                    variant="secondary"
-                    rightIcon={<ArrowRight size={16} />}
-                  >
-                    Ver Rifas Disponíveis
-                  </Button>
-                </Link>
-                <Link to="/nova-rifa">
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="border-white text-white hover:bg-white hover:text-primary-500"
-                  >
-                    Criar Minha Rifa
-                  </Button>
-                </Link>
+                <Button
+                  size="lg"
+                  variant="secondary"
+                  rightIcon={<ArrowRight size={16} />}
+                  onClick={() => navigate('/rifas')}
+                >
+                  Ver Rifas Disponíveis
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="border-white text-white hover:bg-white hover:text-primary-500"
+                  onClick={handleCreateRaffle}
+                >
+                  Criar Minha Rifa
+                </Button>
               </div>
             </motion.div>
 
@@ -209,11 +218,13 @@ export const HomePage: React.FC = () => {
               </p>
             </div>
             <div className="mt-4 md:mt-0">
-              <Link to="/rifas">
-                <Button variant="outline" rightIcon={<ArrowRight size={16} />}>
-                  Ver Todas as Rifas
-                </Button>
-              </Link>
+              <Button
+                variant="outline"
+                rightIcon={<ArrowRight size={16} />}
+                onClick={() => navigate('/rifas')}
+              >
+                Ver Todas as Rifas
+              </Button>
             </div>
           </div>
 
@@ -261,11 +272,9 @@ export const HomePage: React.FC = () => {
             rápido, fácil e seguro!
           </p>
           <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 justify-center">
-            <Link to="/nova-rifa">
-              <Button size="lg" variant="secondary">
-                Criar Minha Rifa
-              </Button>
-            </Link>
+            <Button size="lg" variant="secondary" onClick={handleCreateRaffle}>
+              Criar Minha Rifa
+            </Button>
             <button
               onClick={() => scrollToSection("sobre-nos")}
               className="inline-flex items-center justify-center px-6 py-3 border-2 border-white text-white hover:bg-white hover:text-primary-500 font-medium rounded-md transition-colors duration-200"

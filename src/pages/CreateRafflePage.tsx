@@ -12,9 +12,6 @@ import { Button } from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { createRaffle } from '../services/raffleService';
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-
 const createRaffleSchema = z.object({
   title: z.string()
     .min(5, 'O título deve ter pelo menos 5 caracteres')
@@ -49,10 +46,14 @@ export const CreateRafflePage: React.FC = () => {
     register,
     handleSubmit,
     watch,
-    formState: { errors, isValid },
+    formState: { errors },
   } = useForm<CreateRaffleFormData>({
     resolver: zodResolver(createRaffleSchema),
     mode: 'onChange',
+    defaultValues: {
+      status: 'draft',
+      isCharity: false,
+    }
   });
 
   const formValues = watch();
@@ -65,6 +66,7 @@ export const CreateRafflePage: React.FC = () => {
       const newRaffle = await createRaffle({
         ...data,
         createdBy: user.id,
+        status: 'active', // Always create as active
       });
 
       toast.success('Rifa criada com sucesso!');
@@ -77,13 +79,14 @@ export const CreateRafflePage: React.FC = () => {
     }
   };
 
-  const handleSaveAsDraft = async (data: CreateRaffleFormData) => {
+  const handleSaveAsDraft = async () => {
     if (!user) return;
 
+    const formData = watch();
     try {
       setIsSubmitting(true);
       const newRaffle = await createRaffle({
-        ...data,
+        ...formData,
         createdBy: user.id,
         status: 'draft',
       });
@@ -215,18 +218,6 @@ export const CreateRafflePage: React.FC = () => {
                         Esta é uma rifa beneficente
                       </label>
                     </div>
-
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id="status"
-                        className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                        {...register('status')}
-                      />
-                      <label htmlFor="status" className="ml-2 block text-sm text-gray-900">
-                        Ativar rifa imediatamente após a criação
-                      </label>
-                    </div>
                   </div>
                 </div>
 
@@ -265,8 +256,8 @@ export const CreateRafflePage: React.FC = () => {
                     type="button"
                     variant="outline"
                     leftIcon={<Save size={16} />}
-                    onClick={handleSubmit(handleSaveAsDraft)}
-                    disabled={!isValid || isSubmitting}
+                    onClick={handleSaveAsDraft}
+                    disabled={isSubmitting}
                   >
                     Salvar Rascunho
                   </Button>
@@ -275,7 +266,7 @@ export const CreateRafflePage: React.FC = () => {
                     type="submit"
                     leftIcon={<Save size={16} />}
                     isLoading={isSubmitting}
-                    disabled={!isValid || isSubmitting}
+                    disabled={isSubmitting}
                   >
                     Criar Rifa
                   </Button>
