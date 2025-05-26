@@ -44,3 +44,40 @@ export interface AuthState {
   isLoading: boolean;
   error: string | null;
 }
+
+export interface Campaign {
+  id: string;
+  title: string;
+  description: string;
+  coverImage: string;
+  totalTickets: number;
+  ticketPrice: number;
+  featured: boolean;
+  status: 'draft' | 'active' | 'paused' | 'completed';
+  mode: 'simple' | 'combo';
+  comboRules?: {
+    buy: number;
+    get: number;
+  };
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CampaignTicket {
+  id: string;
+  campaignId: string;
+  number: number;
+  isPrize: boolean;
+  prizeDescription?: string;
+  status: 'available' | 'reserved' | 'sold';
+  userId?: string;
+  purchaseDate?: string;
+}
+
+export interface BuyerRanking {
+  userId: string;
+  userName: string;
+  ticketsBought: number;
+  participationPercentage: number;
+}
