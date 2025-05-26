@@ -202,10 +202,21 @@ export const getRaffleNumbers = async (raffleId: string): Promise<RaffleNumber[]
 
 export const getUserRaffles = async (userId: string): Promise<Raffle[]> => {
   try {
+    // First check if the user has any tickets
+    const { data: ticketsData, error: ticketsError } = await supabase
+      .from('tickets')
+      .select('raffle_id')
+      .eq('user_id', userId);
+
+    if (ticketsError) {
+      return mockRaffles.filter(r => r.createdBy === userId);
+    }
+
+    // Get all raffles created by the user or where they have tickets
     const { data: rafflesData, error: rafflesError } = await supabase
       .from('raffles')
       .select('*')
-      .eq('created_by', userId);
+      .or(`created_by.eq.${userId},id.in.(${ticketsData.map(t => t.raffle_id).join(',')})`);
 
     if (rafflesError) {
       return mockRaffles.filter(r => r.createdBy === userId);
@@ -249,25 +260,31 @@ export const getUserRaffles = async (userId: string): Promise<Raffle[]> => {
 };
 
 export const getUserTickets = async (userId: string): Promise<Ticket[]> => {
-  const { data, error } = await supabase
-    .from('tickets')
-    .select(`
-      *,
-      raffle_numbers(number)
-    `)
-    .eq('user_id', userId);
+  try {
+    const { data, error } = await supabase
+      .from('tickets')
+      .select(`
+        *,
+        raffle_numbers!inner (
+          number
+        )
+      `)
+      .eq('user_id', userId);
 
-  if (error) return [];
+    if (error) return [];
 
-  return data.map(ticket => ({
-    id: ticket.id,
-    raffleId: ticket.raffle_id,
-    userId: ticket.user_id,
-    numbers: ticket.raffle_numbers.map((n: any) => n.number),
-    purchaseDate: ticket.purchase_date,
-    paymentStatus: ticket.payment_status,
-    paymentMethod: ticket.payment_method,
-  }));
+    return data.map(ticket => ({
+      id: ticket.id,
+      raffleId: ticket.raffle_id,
+      userId: ticket.user_id,
+      numbers: ticket.raffle_numbers.map((n: any) => n.number),
+      purchaseDate: ticket.purchase_date,
+      paymentStatus: ticket.payment_status,
+      paymentMethod: ticket.payment_method,
+    }));
+  } catch (error) {
+    return [];
+  }
 };
 
 export const purchaseTickets = async (

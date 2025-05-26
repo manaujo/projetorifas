@@ -1,43 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { Campaign, CampaignTicket, BuyerRanking } from '../types';
 
-export const createCampaign = async (campaignData: Omit<Campaign, 'id' | 'createdAt' | 'updatedAt'>): Promise<Campaign> => {
-  const { data, error } = await supabase
-    .from('campaigns')
-    .insert({
-      title: campaignData.title,
-      description: campaignData.description,
-      cover_image: campaignData.coverImage,
-      total_tickets: campaignData.totalTickets,
-      ticket_price: campaignData.ticketPrice,
-      featured: campaignData.featured,
-      status: campaignData.status,
-      mode: campaignData.mode,
-      combo_rules: campaignData.comboRules,
-      created_by: campaignData.createdBy,
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-
-  return {
-    id: data.id,
-    title: data.title,
-    description: data.description,
-    coverImage: data.cover_image,
-    totalTickets: data.total_tickets,
-    ticketPrice: data.ticket_price,
-    featured: data.featured,
-    status: data.status,
-    mode: data.mode,
-    comboRules: data.combo_rules,
-    createdBy: data.created_by,
-    createdAt: data.created_at,
-    updatedAt: data.updated_at,
-  };
-};
-
 export const getCampaigns = async (): Promise<Campaign[]> => {
   const { data, error } = await supabase
     .from('campaigns')

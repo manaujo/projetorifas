@@ -9,11 +9,12 @@ import { RafflePage } from './pages/RafflePage';
 import { DashboardPage } from './pages/DashboardPage';
 import { CreateRafflePage } from './pages/CreateRafflePage';
 import { RafflesPage } from './pages/RafflesPage';
+import { CampaignsPage } from './pages/CampaignsPage';
+import { CampaignPage } from './pages/CampaignPage';
 import { AboutPage } from './pages/AboutPage';
 import { FAQPage } from './pages/FAQPage';
 import { PricingPage } from './pages/PricingPage';
 import { ContactPage } from './pages/ContactPage';
-import { CampaignsPage } from './pages/CampaignsPage';
 
 // Protected route wrapper
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -41,6 +42,7 @@ function App() {
           <Route path="/rifas" element={<RafflesPage />} />
           <Route path="/rifas/:id" element={<RafflePage />} />
           <Route path="/campanhas" element={<CampaignsPage />} />
+          <Route path="/campanhas/:id" element={<CampaignPage />} />
           <Route path="/sobre" element={<AboutPage />} />
           <Route path="/faq" element={<FAQPage />} />
           <Route path="/precos" element={<PricingPage />} />
