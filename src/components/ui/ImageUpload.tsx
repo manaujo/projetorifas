@@ -1,7 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Upload, X, Image as ImageIcon } from 'lucide-react';
 import { Button } from './Button';
-import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
 
 interface ImageUploadProps {
@@ -40,46 +39,19 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     try {
       setIsUploading(true);
 
-      // Create preview
+      // Convert file to base64 for preview
       const reader = new FileReader();
       reader.onload = (e) => {
-        setPreview(e.target?.result as string);
+        const result = e.target?.result as string;
+        setPreview(result);
+        onImageUploaded(result);
       };
       reader.readAsDataURL(file);
 
-      // Upload to Supabase Storage
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `images/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('uploads')
-        .upload(filePath, file);
-
-      if (uploadError) {
-        // Fallback to a placeholder image service for demo
-        const placeholderUrl = `https://picsum.photos/800/600?random=${Date.now()}`;
-        setPreview(placeholderUrl);
-        onImageUploaded(placeholderUrl);
-        toast.success('Imagem carregada com sucesso!');
-        return;
-      }
-
-      // Get public URL
-      const { data } = supabase.storage
-        .from('uploads')
-        .getPublicUrl(filePath);
-
-      onImageUploaded(data.publicUrl);
       toast.success('Imagem carregada com sucesso!');
-
     } catch (error) {
       console.error('Upload error:', error);
-      // Fallback to placeholder
-      const placeholderUrl = `https://picsum.photos/800/600?random=${Date.now()}`;
-      setPreview(placeholderUrl);
-      onImageUploaded(placeholderUrl);
-      toast.success('Imagem carregada com sucesso!');
+      toast.error('Erro ao carregar imagem');
     } finally {
       setIsUploading(false);
     }

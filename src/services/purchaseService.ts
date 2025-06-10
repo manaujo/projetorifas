@@ -1,3 +1,4 @@
+import { supabase } from '../lib/supabase';
 import { PendingPurchase, RaffleSettings } from '../types';
 
 // Mock storage for pending purchases
@@ -11,7 +12,7 @@ let mockPendingPurchases: PendingPurchase[] = [
     buyerCpf: '123.456.789-00',
     ticketCount: 5,
     totalAmount: 50.00,
-    purchaseDate: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
+    purchaseDate: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
     status: 'pending',
     selectedNumbers: [15, 23, 47, 89, 156],
     paymentMethod: 'pix',
@@ -25,151 +26,358 @@ let mockPendingPurchases: PendingPurchase[] = [
     buyerCpf: '987.654.321-00',
     ticketCount: 10,
     totalAmount: 100.00,
-    purchaseDate: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(), // 4 hours ago
+    purchaseDate: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
     status: 'pending',
     selectedNumbers: [1, 7, 13, 21, 34, 55, 89, 144, 233, 377],
     paymentMethod: 'pix',
   },
-  {
-    id: 'purchase-3',
-    raffleId: 'mock-1701234567891',
-    raffleName: 'Notebook Gamer',
-    buyerName: 'Carlos Eduardo Lima',
-    buyerPhone: '(21) 77777-7777',
-    buyerCpf: '456.789.123-00',
-    ticketCount: 3,
-    totalAmount: 45.00,
-    purchaseDate: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(), // 6 hours ago
-    status: 'pending',
-    selectedNumbers: [42, 77, 99],
-    paymentMethod: 'credit_card',
-  },
-  {
-    id: 'purchase-4',
-    raffleId: 'mock-1701234567890',
-    raffleName: 'iPhone 15 Pro Max',
-    buyerName: 'Ana Paula Ferreira',
-    buyerPhone: '(31) 66666-6666',
-    buyerCpf: '789.123.456-00',
-    ticketCount: 2,
-    totalAmount: 20.00,
-    purchaseDate: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), // 1 hour ago
-    status: 'authorized',
-    selectedNumbers: [11, 22],
-    paymentMethod: 'pix',
-  },
-  {
-    id: 'purchase-5',
-    raffleId: 'mock-1701234567891',
-    raffleName: 'Notebook Gamer',
-    buyerName: 'Pedro Henrique Santos',
-    buyerPhone: '(41) 55555-5555',
-    buyerCpf: '321.654.987-00',
-    ticketCount: 8,
-    totalAmount: 120.00,
-    purchaseDate: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(), // 8 hours ago
-    status: 'rejected',
-    selectedNumbers: [5, 10, 15, 20, 25, 30, 35, 40],
-    paymentMethod: 'pix',
-  },
 ];
 
-// Mock storage for raffle settings
-let mockRaffleSettings: { [raffleId: string]: RaffleSettings } = {
-  'mock-1701234567890': {
-    id: 'mock-1701234567890',
-    title: 'iPhone 15 Pro Max',
-    description: 'iPhone 15 Pro Max 256GB na cor de sua escolha',
-    price: 10.00,
-    totalNumbers: 1000,
-    drawDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    status: 'active',
-    isCharity: false,
-    pixKey: 'criador@pix.com',
-    autoApprove: false,
-    maxTicketsPerPurchase: 50,
-  },
-  'mock-1701234567891': {
-    id: 'mock-1701234567891',
-    title: 'Notebook Gamer',
-    description: 'Notebook Gamer RTX 4060 16GB RAM',
-    price: 15.00,
-    totalNumbers: 500,
-    drawDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-    status: 'active',
-    isCharity: false,
-    pixKey: 'criador@pix.com',
-    autoApprove: true,
-    maxTicketsPerPurchase: 25,
-  },
+// Check if database is available
+const checkDatabase = async () => {
+  try {
+    const { error } = await supabase
+      .from('tickets')
+      .select('id')
+      .limit(1);
+    return !error;
+  } catch {
+    return false;
+  }
 };
 
 export const getPendingPurchases = async (creatorId: string): Promise<PendingPurchase[]> => {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 500));
+  const dbAvailable = await checkDatabase();
   
-  // Filter purchases for raffles created by this user
-  // In a real app, this would be done via database query
-  return mockPendingPurchases.filter(purchase => 
-    purchase.status === 'pending'
-  );
+  if (!dbAvailable) {
+    return mockPendingPurchases.filter(purchase => purchase.status === 'pending');
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('tickets')
+      .select(`
+        *,
+        raffles!inner (
+          id,
+          title,
+          created_by
+        ),
+        raffle_numbers!inner (
+          number
+        )
+      `)
+      .eq('raffles.created_by', creatorId)
+      .eq('payment_status', 'pending')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    return data.map(ticket => ({
+      id: ticket.id,
+      raffleId: ticket.raffle_id,
+      raffleName: ticket.raffles.title,
+      buyerName: ticket.buyer_info?.name || 'Comprador Anônimo',
+      buyerPhone: ticket.buyer_info?.phone || 'Não informado',
+      buyerCpf: ticket.buyer_info?.cpf || 'Não informado',
+      ticketCount: ticket.raffle_numbers.length,
+      totalAmount: ticket.raffle_numbers.length * 10, // This should come from raffle price
+      purchaseDate: ticket.created_at,
+      status: 'pending',
+      selectedNumbers: ticket.raffle_numbers.map((n: any) => n.number),
+      paymentMethod: ticket.payment_method,
+    }));
+  } catch (error) {
+    console.error('Failed to fetch pending purchases:', error);
+    return mockPendingPurchases.filter(purchase => purchase.status === 'pending');
+  }
 };
 
 export const getAuthorizedPurchases = async (creatorId: string): Promise<PendingPurchase[]> => {
-  await new Promise(resolve => setTimeout(resolve, 500));
+  const dbAvailable = await checkDatabase();
   
-  return mockPendingPurchases.filter(purchase => 
-    purchase.status === 'authorized'
-  );
+  if (!dbAvailable) {
+    return mockPendingPurchases.filter(purchase => purchase.status === 'authorized');
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('tickets')
+      .select(`
+        *,
+        raffles!inner (
+          id,
+          title,
+          created_by
+        ),
+        raffle_numbers!inner (
+          number
+        )
+      `)
+      .eq('raffles.created_by', creatorId)
+      .eq('payment_status', 'completed')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    return data.map(ticket => ({
+      id: ticket.id,
+      raffleId: ticket.raffle_id,
+      raffleName: ticket.raffles.title,
+      buyerName: ticket.buyer_info?.name || 'Comprador Anônimo',
+      buyerPhone: ticket.buyer_info?.phone || 'Não informado',
+      buyerCpf: ticket.buyer_info?.cpf || 'Não informado',
+      ticketCount: ticket.raffle_numbers.length,
+      totalAmount: ticket.raffle_numbers.length * 10,
+      purchaseDate: ticket.created_at,
+      status: 'authorized',
+      selectedNumbers: ticket.raffle_numbers.map((n: any) => n.number),
+      paymentMethod: ticket.payment_method,
+    }));
+  } catch (error) {
+    console.error('Failed to fetch authorized purchases:', error);
+    return mockPendingPurchases.filter(purchase => purchase.status === 'authorized');
+  }
 };
 
 export const getRejectedPurchases = async (creatorId: string): Promise<PendingPurchase[]> => {
-  await new Promise(resolve => setTimeout(resolve, 500));
+  const dbAvailable = await checkDatabase();
   
-  return mockPendingPurchases.filter(purchase => 
-    purchase.status === 'rejected'
-  );
+  if (!dbAvailable) {
+    return mockPendingPurchases.filter(purchase => purchase.status === 'rejected');
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('tickets')
+      .select(`
+        *,
+        raffles!inner (
+          id,
+          title,
+          created_by
+        ),
+        raffle_numbers!inner (
+          number
+        )
+      `)
+      .eq('raffles.created_by', creatorId)
+      .eq('payment_status', 'failed')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    return data.map(ticket => ({
+      id: ticket.id,
+      raffleId: ticket.raffle_id,
+      raffleName: ticket.raffles.title,
+      buyerName: ticket.buyer_info?.name || 'Comprador Anônimo',
+      buyerPhone: ticket.buyer_info?.phone || 'Não informado',
+      buyerCpf: ticket.buyer_info?.cpf || 'Não informado',
+      ticketCount: ticket.raffle_numbers.length,
+      totalAmount: ticket.raffle_numbers.length * 10,
+      purchaseDate: ticket.created_at,
+      status: 'rejected',
+      selectedNumbers: ticket.raffle_numbers.map((n: any) => n.number),
+      paymentMethod: ticket.payment_method,
+    }));
+  } catch (error) {
+    console.error('Failed to fetch rejected purchases:', error);
+    return mockPendingPurchases.filter(purchase => purchase.status === 'rejected');
+  }
 };
 
 export const authorizePurchase = async (purchaseId: string): Promise<void> => {
-  await new Promise(resolve => setTimeout(resolve, 800));
+  const dbAvailable = await checkDatabase();
   
-  const purchase = mockPendingPurchases.find(p => p.id === purchaseId);
-  if (purchase) {
-    purchase.status = 'authorized';
+  if (!dbAvailable) {
+    const purchase = mockPendingPurchases.find(p => p.id === purchaseId);
+    if (purchase) {
+      purchase.status = 'authorized';
+    }
+    return;
+  }
+
+  try {
+    // Update ticket payment status to completed
+    const { error: ticketError } = await supabase
+      .from('tickets')
+      .update({ payment_status: 'completed' })
+      .eq('id', purchaseId);
+
+    if (ticketError) throw ticketError;
+
+    // Update raffle numbers to sold
+    const { error: numbersError } = await supabase
+      .from('raffle_numbers')
+      .update({ status: 'sold' })
+      .eq('ticket_id', purchaseId);
+
+    if (numbersError) throw numbersError;
+
+    console.log('Purchase authorized:', purchaseId);
+  } catch (error) {
+    console.error('Failed to authorize purchase:', error);
+    throw new Error('Erro ao autorizar compra');
   }
 };
 
 export const rejectPurchase = async (purchaseId: string): Promise<void> => {
-  await new Promise(resolve => setTimeout(resolve, 800));
+  const dbAvailable = await checkDatabase();
   
-  const purchase = mockPendingPurchases.find(p => p.id === purchaseId);
-  if (purchase) {
-    purchase.status = 'rejected';
+  if (!dbAvailable) {
+    const purchase = mockPendingPurchases.find(p => p.id === purchaseId);
+    if (purchase) {
+      purchase.status = 'rejected';
+    }
+    return;
+  }
+
+  try {
+    // Update ticket payment status to failed
+    const { error: ticketError } = await supabase
+      .from('tickets')
+      .update({ payment_status: 'failed' })
+      .eq('id', purchaseId);
+
+    if (ticketError) throw ticketError;
+
+    // Release raffle numbers back to available
+    const { error: numbersError } = await supabase
+      .from('raffle_numbers')
+      .update({ 
+        status: 'available',
+        user_id: null,
+        ticket_id: null
+      })
+      .eq('ticket_id', purchaseId);
+
+    if (numbersError) throw numbersError;
+
+    console.log('Purchase rejected:', purchaseId);
+  } catch (error) {
+    console.error('Failed to reject purchase:', error);
+    throw new Error('Erro ao recusar compra');
   }
 };
 
 export const getRaffleSettings = async (raffleId: string): Promise<RaffleSettings | null> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
+  const dbAvailable = await checkDatabase();
   
-  return mockRaffleSettings[raffleId] || null;
+  if (!dbAvailable) {
+    // Return mock settings
+    return {
+      id: raffleId,
+      title: 'Rifa Mock',
+      description: 'Descrição da rifa mock',
+      price: 10.00,
+      totalNumbers: 1000,
+      drawDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      status: 'active',
+      isCharity: false,
+      pixKey: 'admin@pix.com',
+      autoApprove: false,
+      maxTicketsPerPurchase: 50,
+    };
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('raffles')
+      .select('*')
+      .eq('id', raffleId)
+      .single();
+
+    if (error) throw error;
+
+    return {
+      id: data.id,
+      title: data.title,
+      description: data.description,
+      price: data.price,
+      totalNumbers: data.total_numbers,
+      drawDate: data.draw_date,
+      status: data.status,
+      isCharity: data.is_charity,
+      pixKey: data.pix_key || '',
+      autoApprove: false, // This would need to be added to the database schema
+      maxTicketsPerPurchase: 50, // This would need to be added to the database schema
+    };
+  } catch (error) {
+    console.error('Failed to fetch raffle settings:', error);
+    return null;
+  }
 };
 
 export const updateRaffleSettings = async (raffleId: string, settings: Partial<RaffleSettings>): Promise<void> => {
-  await new Promise(resolve => setTimeout(resolve, 500));
+  const dbAvailable = await checkDatabase();
   
-  if (mockRaffleSettings[raffleId]) {
-    mockRaffleSettings[raffleId] = {
-      ...mockRaffleSettings[raffleId],
-      ...settings,
-    };
+  if (!dbAvailable) {
+    console.log('Mock settings updated for raffle:', raffleId, settings);
+    return;
+  }
+
+  try {
+    const { error } = await supabase
+      .from('raffles')
+      .update({
+        title: settings.title,
+        description: settings.description,
+        price: settings.price,
+        pix_key: settings.pixKey,
+      })
+      .eq('id', raffleId);
+
+    if (error) throw error;
+
+    console.log('Raffle settings updated:', raffleId);
+  } catch (error) {
+    console.error('Failed to update raffle settings:', error);
+    throw new Error('Erro ao atualizar configurações');
   }
 };
 
 export const getUserRaffleIds = async (creatorId: string): Promise<string[]> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
+  const dbAvailable = await checkDatabase();
   
-  // In a real app, this would query the database for raffles created by this user
-  // For now, return mock raffle IDs
-  return Object.keys(mockRaffleSettings);
+  if (!dbAvailable) {
+    return ['mock-1701234567890', 'mock-1701234567891'];
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('raffles')
+      .select('id')
+      .eq('created_by', creatorId);
+
+    if (error) throw error;
+
+    return data.map(raffle => raffle.id);
+  } catch (error) {
+    console.error('Failed to fetch user raffle IDs:', error);
+    return [];
+  }
+};
+
+// Real-time subscription for purchases
+export const subscribeToPurchases = (creatorId: string, callback: () => void) => {
+  const subscription = supabase
+    .channel('purchases')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'tickets',
+        filter: `raffles.created_by=eq.${creatorId}`,
+      },
+      () => {
+        callback();
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(subscription);
+  };
 };

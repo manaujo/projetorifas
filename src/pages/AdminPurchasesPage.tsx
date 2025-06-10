@@ -14,6 +14,7 @@ import {
   getRejectedPurchases,
   authorizePurchase,
   rejectPurchase,
+  subscribeToPurchases,
 } from '../services/purchaseService';
 
 export const AdminPurchasesPage: React.FC = () => {
@@ -27,6 +28,13 @@ export const AdminPurchasesPage: React.FC = () => {
   useEffect(() => {
     if (user) {
       loadPurchases();
+      
+      // Set up real-time subscription
+      const unsubscribe = subscribeToPurchases(user.id, () => {
+        loadPurchases();
+      });
+      
+      return unsubscribe;
     }
   }, [user]);
 
@@ -218,6 +226,12 @@ export const AdminPurchasesPage: React.FC = () => {
                 <p className="text-gray-600">
                   {getPageDescription()}
                 </p>
+                
+                {/* Real-time indicator */}
+                <div className="mt-2 flex items-center text-sm text-success-600">
+                  <div className="w-2 h-2 bg-success-500 rounded-full mr-2 animate-pulse"></div>
+                  Atualizações em tempo real ativas
+                </div>
               </div>
 
               {/* Content */}

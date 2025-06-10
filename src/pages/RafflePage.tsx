@@ -10,7 +10,6 @@ import { PurchaseModal } from '../components/PurchaseModal';
 import { Raffle, RaffleNumber } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { getRaffleById, getRaffleNumbers, purchaseTickets } from '../services/raffleService';
-import { getUserById } from '../services/authService';
 import { toast } from 'react-hot-toast';
 
 export const RafflePage: React.FC = () => {
@@ -23,7 +22,6 @@ export const RafflePage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
-  const [creatorPixKey, setCreatorPixKey] = useState<string>('');
   
   useEffect(() => {
     const fetchRaffleData = async () => {
@@ -39,12 +37,6 @@ export const RafflePage: React.FC = () => {
         }
         
         setRaffle(raffleData);
-        
-        // Get creator's PIX key
-        const creator = await getUserById(raffleData.createdBy);
-        if (creator?.pixKey) {
-          setCreatorPixKey(creator.pixKey);
-        }
         
         const numbers = await getRaffleNumbers(id);
         setRaffleNumbers(numbers);
@@ -100,8 +92,8 @@ export const RafflePage: React.FC = () => {
       return;
     }
     
-    if (!creatorPixKey) {
-      toast.error('Chave PIX do criador não encontrada');
+    if (!raffle?.pixKey) {
+      toast.error('Chave PIX não configurada para esta rifa');
       return;
     }
     
@@ -115,11 +107,11 @@ export const RafflePage: React.FC = () => {
       setIsSubmitting(true);
       
       // Create a guest user ID for tracking
-      const guestUserId = `guest-${Date.now()}`;
+      const guestUserId = user?.id || `guest-${Date.now()}`;
       
-      await purchaseTickets(raffle.id, guestUserId, selectedNumbers, 'pix');
+      await purchaseTickets(raffle.id, guestUserId, selectedNumbers, 'pix', buyerInfo);
       
-      toast.success('Compra realizada com sucesso! Aguarde a confirmação do pagamento.');
+      toast.success('Compra realizada com sucesso! Aguarde a confirmação do pagamento pelo criador da rifa.');
       
       // Refresh numbers
       const updatedNumbers = await getRaffleNumbers(raffle.id);
@@ -363,7 +355,7 @@ export const RafflePage: React.FC = () => {
                     fullWidth
                     size="lg"
                     onClick={handlePurchaseClick}
-                    disabled={selectedNumbers.length === 0 || !creatorPixKey}
+                    disabled={selectedNumbers.length === 0 || !raffle.pixKey}
                   >
                     Comprar Números
                   </Button>
@@ -371,7 +363,7 @@ export const RafflePage: React.FC = () => {
                   <div className="mt-4 text-xs text-gray-500 flex items-start">
                     <AlertTriangle size={14} className="mr-1 mt-0.5 flex-shrink-0" />
                     <span>
-                      Você não precisa criar conta. Após a compra, seus dados serão salvos para contato em caso de vitória.
+                      Após a compra, o criador da rifa irá verificar seu pagamento e autorizar os números.
                     </span>
                   </div>
                 </div>
@@ -381,15 +373,17 @@ export const RafflePage: React.FC = () => {
         </div>
       </div>
 
-      <PurchaseModal
-        isOpen={isPurchaseModalOpen}
-        onClose={() => setIsPurchaseModalOpen(false)}
-        selectedNumbers={selectedNumbers}
-        totalPrice={totalPrice}
-        pixKey={creatorPixKey}
-        itemTitle={raffle.title}
-        onConfirmPurchase={handleConfirmPurchase}
-      />
+      {raffle.pixKey && (
+        <PurchaseModal
+          isOpen={isPurchaseModalOpen}
+          onClose={() => setIsPurchaseModalOpen(false)}
+          selectedNumbers={selectedNumbers}
+          totalPrice={totalPrice}
+          pixKey={raffle.pixKey}
+          itemTitle={raffle.title}
+          onConfirmPurchase={handleConfirmPurchase}
+        />
+      )}
     </Layout>
   );
 };
