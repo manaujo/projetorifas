@@ -30,6 +30,11 @@ export const CampaignsPage: React.FC = () => {
     };
 
     fetchCampaigns();
+
+    // Set up periodic refresh to show new campaigns
+    const interval = setInterval(fetchCampaigns, 30000); // Refresh every 30 seconds
+    
+    return () => clearInterval(interval);
   }, []);
 
   const filteredCampaigns = campaigns.filter(campaign => {
@@ -59,7 +64,7 @@ export const CampaignsPage: React.FC = () => {
           </div>
           
           {user?.role === 'admin' && (
-            <Link to="/admin/campanhas/nova">
+            <Link to="/criar-campanha">
               <Button leftIcon={<PlusCircle size={16} />}>
                 Nova Campanha
               </Button>
@@ -137,9 +142,16 @@ export const CampaignsPage: React.FC = () => {
             <h3 className="text-lg font-medium text-gray-900 mb-2">
               Nenhuma campanha encontrada
             </h3>
-            <p className="text-gray-600">
+            <p className="text-gray-600 mb-6">
               Tente ajustar seus filtros ou termos de busca
             </p>
+            {user?.role === 'admin' && (
+              <Link to="/criar-campanha">
+                <Button leftIcon={<PlusCircle size={16} />}>
+                  Criar Nova Campanha
+                </Button>
+              </Link>
+            )}
           </div>
         )}
       </div>

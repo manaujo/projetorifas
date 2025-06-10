@@ -12,6 +12,7 @@ import { Raffle, Campaign } from "../types";
 import { getRaffles } from "../services/raffleService";
 import { getCampaigns } from "../services/campaignService";
 import { useAuth } from "../contexts/AuthContext";
+import { hasActivePlan } from "../services/authService";
 import Img from "../assets/c0b098c0-29eb-447e-b616-1fdf7002095e.png";
 
 export const HomePage: React.FC = () => {
@@ -29,11 +30,14 @@ export const HomePage: React.FC = () => {
           getCampaigns(),
         ]);
         
+        // Show all active raffles (including newly created ones)
         setActiveRaffles(
-          raffles.filter((raffle) => raffle.status === "active").slice(0, 3)
+          raffles.filter((raffle) => raffle.status === "active").slice(0, 6)
         );
+        
+        // Show all active campaigns (including newly created ones)
         setActiveCampaigns(
-          campaigns.filter((campaign) => campaign.status === "active").slice(0, 3)
+          campaigns.filter((campaign) => campaign.status === "active").slice(0, 6)
         );
       } catch (error) {
         console.error("Failed to fetch data", error);
@@ -43,6 +47,11 @@ export const HomePage: React.FC = () => {
     };
 
     fetchData();
+
+    // Set up periodic refresh to show new content
+    const interval = setInterval(fetchData, 30000); // Refresh every 30 seconds
+    
+    return () => clearInterval(interval);
   }, []);
 
   const handleCreateRaffle = () => {
@@ -50,6 +59,12 @@ export const HomePage: React.FC = () => {
       navigate('/login');
       return;
     }
+    
+    if (!user || (!hasActivePlan(user) && user.role !== 'admin')) {
+      navigate('/precos');
+      return;
+    }
+    
     navigate('/criar-rifa');
   };
 
@@ -266,7 +281,7 @@ export const HomePage: React.FC = () => {
                 </div>
               ))}
             </div>
-          ) : (
+          ) : activeRaffles.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {activeRaffles.map((raffle) => (
                 <motion.div
@@ -278,6 +293,19 @@ export const HomePage: React.FC = () => {
                   <RaffleCard raffle={raffle} />
                 </motion.div>
               ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <Ticket size={48} className="mx-auto text-gray-400 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Nenhuma rifa ativa no momento
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Seja o primeiro a criar uma rifa!
+              </p>
+              <Button onClick={handleCreateRaffle}>
+                Criar Primeira Rifa
+              </Button>
             </div>
           )}
         </div>
@@ -322,7 +350,7 @@ export const HomePage: React.FC = () => {
                 </div>
               ))}
             </div>
-          ) : (
+          ) : activeCampaigns.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {activeCampaigns.map((campaign) => (
                 <motion.div
@@ -334,6 +362,21 @@ export const HomePage: React.FC = () => {
                   <CampaignCard campaign={campaign} />
                 </motion.div>
               ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <Megaphone size={48} className="mx-auto text-gray-400 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Nenhuma campanha ativa no momento
+              </h3>
+              <p className="text-gray-600 mb-6">
+                {user?.role === 'admin' ? 'Crie a primeira campanha!' : 'Aguarde novas campanhas!'}
+              </p>
+              {user?.role === 'admin' && (
+                <Button onClick={handleCreateCampaign}>
+                  Criar Primeira Campanha
+                </Button>
+              )}
             </div>
           )}
         </div>

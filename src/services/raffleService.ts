@@ -35,6 +35,9 @@ let mockRaffles: Raffle[] = [
   }
 ];
 
+// Mock purchases for admin panel
+let mockPurchases: any[] = [];
+
 // Initialize database schema if tables don't exist
 const initializeDatabase = async () => {
   try {
@@ -397,9 +400,25 @@ export const purchaseTickets = async (
   if (!dbAvailable) {
     const raffle = mockRaffles.find(r => r.id === raffleId);
     if (raffle) {
-      raffle.soldNumbers = [...raffle.soldNumbers, ...numbers];
+      // Add to mock purchases for admin panel
+      const mockPurchase = {
+        id: `purchase-${Date.now()}`,
+        raffleId: raffleId,
+        raffleName: raffle.title,
+        buyerName: buyerInfo?.name || 'Comprador Anônimo',
+        buyerPhone: buyerInfo?.phone || 'Não informado',
+        buyerCpf: buyerInfo?.cpf || 'Não informado',
+        ticketCount: numbers.length,
+        totalAmount: numbers.length * raffle.price,
+        purchaseDate: new Date().toISOString(),
+        status: 'pending',
+        selectedNumbers: numbers,
+        paymentMethod: paymentMethod,
+      };
+      
+      mockPurchases.push(mockPurchase);
+      console.log('Mock purchase created:', mockPurchase);
     }
-    console.log('Mock purchase created:', { raffleId, userId, numbers, buyerInfo });
     return;
   }
 
@@ -506,5 +525,36 @@ export const rejectPurchasePayment = async (ticketId: string): Promise<void> => 
   } catch (error) {
     console.error('Failed to reject payment:', error);
     throw new Error('Erro ao recusar pagamento.');
+  }
+};
+
+// Export mock purchases for admin panel
+export const getMockPurchases = () => mockPurchases;
+
+// Real-time subscription for raffle purchases
+export const subscribeToRafflePurchases = (callback: () => void) => {
+  if (databaseAvailable) {
+    const subscription = supabase
+      .channel('raffle_purchases')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'tickets',
+        },
+        () => {
+          callback();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(subscription);
+    };
+  } else {
+    // For mock data, simulate real-time updates
+    const interval = setInterval(callback, 5000);
+    return () => clearInterval(interval);
   }
 };

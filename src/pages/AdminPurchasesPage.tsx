@@ -16,6 +16,7 @@ import {
   rejectPurchase,
   subscribeToPurchases,
 } from '../services/purchaseService';
+import { subscribeToRafflePurchases } from '../services/raffleService';
 
 export const AdminPurchasesPage: React.FC = () => {
   const { user } = useAuth();
@@ -29,12 +30,20 @@ export const AdminPurchasesPage: React.FC = () => {
     if (user) {
       loadPurchases();
       
-      // Set up real-time subscription
-      const unsubscribe = subscribeToPurchases(user.id, () => {
+      // Set up real-time subscription for database
+      const unsubscribeDb = subscribeToPurchases(user.id, () => {
         loadPurchases();
       });
       
-      return unsubscribe;
+      // Set up real-time subscription for raffle purchases (includes mock data)
+      const unsubscribeRaffles = subscribeToRafflePurchases(() => {
+        loadPurchases();
+      });
+      
+      return () => {
+        unsubscribeDb();
+        unsubscribeRaffles();
+      };
     }
   }, [user]);
 

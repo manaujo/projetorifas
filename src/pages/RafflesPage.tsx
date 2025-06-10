@@ -1,13 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search } from 'lucide-react';
+import { Search, PlusCircle } from 'lucide-react';
 import { Layout } from '../components/layout/Layout';
 import { RaffleCard } from '../components/RaffleCard';
 import { Input } from '../components/ui/Input';
+import { Button } from '../components/ui/Button';
 import { getRaffles } from '../services/raffleService';
 import { Raffle } from '../types';
+import { useAuth } from '../contexts/AuthContext';
+import { hasActivePlan } from '../services/authService';
+import { Link } from 'react-router-dom';
 
 export const RafflesPage: React.FC = () => {
+  const { user } = useAuth();
   const [raffles, setRaffles] = useState<Raffle[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -26,6 +31,11 @@ export const RafflesPage: React.FC = () => {
     };
 
     fetchRaffles();
+
+    // Set up periodic refresh to show new raffles
+    const interval = setInterval(fetchRaffles, 30000); // Refresh every 30 seconds
+    
+    return () => clearInterval(interval);
   }, []);
 
   const filteredRaffles = raffles.filter(raffle => {
@@ -41,6 +51,8 @@ export const RafflesPage: React.FC = () => {
     return matchesSearch;
   });
 
+  const canCreateRaffle = user && (hasActivePlan(user) || user.role === 'admin');
+
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">
@@ -49,12 +61,24 @@ export const RafflesPage: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <h1 className="font-display font-bold text-2xl md:text-3xl text-gray-900 mb-2">
-            Rifas Disponíveis
-          </h1>
-          <p className="text-gray-600 mb-8">
-            Encontre as melhores oportunidades e participe
-          </p>
+          <div className="flex justify-between items-center mb-8">
+            <div>
+              <h1 className="font-display font-bold text-2xl md:text-3xl text-gray-900 mb-2">
+                Rifas Disponíveis
+              </h1>
+              <p className="text-gray-600">
+                Encontre as melhores oportunidades e participe
+              </p>
+            </div>
+            
+            {canCreateRaffle && (
+              <Link to="/criar-rifa">
+                <Button leftIcon={<PlusCircle size={16} />}>
+                  Nova Rifa
+                </Button>
+              </Link>
+            )}
+          </div>
 
           <div className="bg-white rounded-lg shadow-card p-6 mb-8">
             <div className="flex flex-col md:flex-row gap-4">
@@ -133,9 +157,16 @@ export const RafflesPage: React.FC = () => {
               <h3 className="text-lg font-medium text-gray-900 mb-2">
                 Nenhuma rifa encontrada
               </h3>
-              <p className="text-gray-600">
+              <p className="text-gray-600 mb-6">
                 Tente ajustar seus filtros ou termos de busca
               </p>
+              {canCreateRaffle && (
+                <Link to="/criar-rifa">
+                  <Button leftIcon={<PlusCircle size={16} />}>
+                    Criar Nova Rifa
+                  </Button>
+                </Link>
+              )}
             </div>
           )}
         </motion.div>
