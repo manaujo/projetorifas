@@ -17,6 +17,7 @@ import { AboutPage } from './pages/AboutPage';
 import { FAQPage } from './pages/FAQPage';
 import { PricingPage } from './pages/PricingPage';
 import { ContactPage } from './pages/ContactPage';
+import { AdminPurchasesPage } from './pages/AdminPurchasesPage';
 import { hasActivePlan } from './services/authService';
 
 // Protected route wrapper
@@ -77,6 +78,16 @@ function App() {
             element={
               <ProtectedRoute>
                 <DashboardPage />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* Admin routes */}
+          <Route 
+            path="/admin/compras" 
+            element={
+              <ProtectedRoute>
+                <AdminPurchasesPage />
               </ProtectedRoute>
             } 
           />

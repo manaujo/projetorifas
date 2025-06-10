@@ -150,3 +150,33 @@ export interface CampaignPurchase {
     phone: string;
   };
 }
+
+// New interfaces for the admin panel
+export interface PendingPurchase {
+  id: string;
+  raffleId: string;
+  raffleName: string;
+  buyerName: string;
+  buyerPhone: string;
+  buyerCpf: string;
+  ticketCount: number;
+  totalAmount: number;
+  purchaseDate: string;
+  status: 'pending' | 'authorized' | 'rejected';
+  selectedNumbers: number[];
+  paymentMethod: 'pix' | 'credit_card';
+}
+
+export interface RaffleSettings {
+  id: string;
+  title: string;
+  description: string;
+  price: number;
+  totalNumbers: number;
+  drawDate: string;
+  status: 'draft' | 'active' | 'completed' | 'cancelled';
+  isCharity: boolean;
+  pixKey?: string;
+  autoApprove: boolean;
+  maxTicketsPerPurchase: number;
+}

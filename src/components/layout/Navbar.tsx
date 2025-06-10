@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Ticket, User, LogOut, Menu, X, Home, Gift, PlusCircle, Megaphone, Crown } from 'lucide-react';
+import { Ticket, User, LogOut, Menu, X, Home, Gift, PlusCircle, Megaphone, Crown, Settings } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { hasActivePlan } from '../../services/authService';
 import { Button } from '../ui/Button';
@@ -120,6 +120,11 @@ export const Navbar: React.FC = () => {
                     <Link to="/criar-rifa">
                       <Button variant="ghost" leftIcon={<PlusCircle size={16} />} className="mr-2">
                         Nova Rifa
+                      </Button>
+                    </Link>
+                    <Link to="/admin/compras">
+                      <Button variant="ghost" leftIcon={<Settings size={16} />} className="mr-2">
+                        Admin
                       </Button>
                     </Link>
                   </>
@@ -274,6 +279,16 @@ export const Navbar: React.FC = () => {
                         <div className="flex items-center">
                           <PlusCircle size={18} className="mr-2" />
                           Nova Rifa
+                        </div>
+                      </Link>
+                      <Link 
+                        to="/admin/compras" 
+                        className="block px-3 py-2 rounded-md text-base font-medium text-primary-600 hover:bg-primary-50"
+                        onClick={closeMenu}
+                      >
+                        <div className="flex items-center">
+                          <Settings size={18} className="mr-2" />
+                          Painel Admin
                         </div>
                       </Link>
                     </>
