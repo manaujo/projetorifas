@@ -17,6 +17,22 @@ let mockCampaigns: Campaign[] = [
       buy: 5,
       get: 1,
     },
+    prizes: [
+      {
+        id: 'prize-1',
+        title: 'iPhone 15 Pro Max',
+        description: 'iPhone 15 Pro Max 256GB na cor Titânio Natural',
+        imageUrl: 'https://images.pexels.com/photos/699122/pexels-photo-699122.jpeg',
+        position: 1,
+      },
+      {
+        id: 'prize-2',
+        title: 'MacBook Air M2',
+        description: 'MacBook Air M2 13" 256GB SSD 8GB RAM',
+        imageUrl: 'https://images.pexels.com/photos/205421/pexels-photo-205421.jpeg',
+        position: 2,
+      },
+    ],
     createdBy: 'admin-1',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -31,13 +47,75 @@ let mockCampaigns: Campaign[] = [
     featured: false,
     status: 'active',
     mode: 'simple',
+    prizes: [
+      {
+        id: 'prize-3',
+        title: 'Cestas Básicas',
+        description: '100 cestas básicas para famílias carentes',
+        position: 1,
+      },
+    ],
     createdBy: 'admin-1',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
 ];
 
+// Initialize database schema if tables don't exist
+const initializeDatabase = async () => {
+  try {
+    const { error } = await supabase
+      .from('campaigns')
+      .select('id')
+      .limit(1);
+
+    if (error) {
+      console.warn('Campaign tables not found, using mock data. Please run the migration in Supabase SQL Editor.');
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.warn('Database connection failed, using mock data.');
+    return false;
+  }
+};
+
+let databaseAvailable: boolean | null = null;
+
+const checkDatabase = async () => {
+  if (databaseAvailable === null) {
+    databaseAvailable = await initializeDatabase();
+  }
+  return databaseAvailable;
+};
+
 export const createCampaign = async (campaignData: Omit<Campaign, 'id' | 'createdAt' | 'updatedAt'>): Promise<Campaign> => {
+  const dbAvailable = await checkDatabase();
+  
+  if (!dbAvailable) {
+    // Create mock campaign
+    const mockCampaign: Campaign = {
+      id: `mock-campaign-${Date.now()}`,
+      title: campaignData.title,
+      description: campaignData.description,
+      coverImage: campaignData.coverImage,
+      totalTickets: campaignData.totalTickets,
+      ticketPrice: campaignData.ticketPrice,
+      featured: campaignData.featured,
+      status: campaignData.status,
+      mode: campaignData.mode,
+      comboRules: campaignData.comboRules,
+      prizes: campaignData.prizes,
+      createdBy: campaignData.createdBy,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    mockCampaigns.push(mockCampaign);
+    return mockCampaign;
+  }
+
   try {
     const { data, error } = await supabase
       .from('campaigns')
@@ -56,27 +134,7 @@ export const createCampaign = async (campaignData: Omit<Campaign, 'id' | 'create
       .select()
       .single();
 
-    if (error) {
-      // If database operation fails, create a mock campaign
-      const mockCampaign: Campaign = {
-        id: `mock-campaign-${Date.now()}`,
-        title: campaignData.title,
-        description: campaignData.description,
-        coverImage: campaignData.coverImage,
-        totalTickets: campaignData.totalTickets,
-        ticketPrice: campaignData.ticketPrice,
-        featured: campaignData.featured,
-        status: campaignData.status,
-        mode: campaignData.mode,
-        comboRules: campaignData.comboRules,
-        createdBy: campaignData.createdBy,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
-      mockCampaigns.push(mockCampaign);
-      return mockCampaign;
-    }
+    if (error) throw error;
 
     return {
       id: data.id,
@@ -89,12 +147,14 @@ export const createCampaign = async (campaignData: Omit<Campaign, 'id' | 'create
       status: data.status,
       mode: data.mode,
       comboRules: data.combo_rules,
+      prizes: campaignData.prizes,
       createdBy: data.created_by,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
     };
   } catch (error) {
-    // If any error occurs, create a mock campaign
+    console.error('Database operation failed, using mock data:', error);
+    // Fallback to mock campaign
     const mockCampaign: Campaign = {
       id: `mock-campaign-${Date.now()}`,
       title: campaignData.title,
@@ -106,6 +166,7 @@ export const createCampaign = async (campaignData: Omit<Campaign, 'id' | 'create
       status: campaignData.status,
       mode: campaignData.mode,
       comboRules: campaignData.comboRules,
+      prizes: campaignData.prizes,
       createdBy: campaignData.createdBy,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -117,15 +178,19 @@ export const createCampaign = async (campaignData: Omit<Campaign, 'id' | 'create
 };
 
 export const getCampaigns = async (): Promise<Campaign[]> => {
+  const dbAvailable = await checkDatabase();
+  
+  if (!dbAvailable) {
+    return mockCampaigns;
+  }
+
   try {
     const { data, error } = await supabase
       .from('campaigns')
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (error) {
-      return mockCampaigns;
-    }
+    if (error) throw error;
 
     return data.map(campaign => ({
       id: campaign.id,
@@ -138,16 +203,24 @@ export const getCampaigns = async (): Promise<Campaign[]> => {
       status: campaign.status,
       mode: campaign.mode,
       comboRules: campaign.combo_rules,
+      prizes: [], // Would need to fetch from a separate prizes table
       createdBy: campaign.created_by,
       createdAt: campaign.created_at,
       updatedAt: campaign.updated_at,
     }));
   } catch (error) {
+    console.error('Database operation failed, using mock data:', error);
     return mockCampaigns;
   }
 };
 
 export const getCampaignById = async (id: string): Promise<Campaign | null> => {
+  const dbAvailable = await checkDatabase();
+  
+  if (!dbAvailable) {
+    return mockCampaigns.find(c => c.id === id) || null;
+  }
+
   try {
     const { data, error } = await supabase
       .from('campaigns')
@@ -155,9 +228,7 @@ export const getCampaignById = async (id: string): Promise<Campaign | null> => {
       .eq('id', id)
       .single();
 
-    if (error) {
-      return mockCampaigns.find(c => c.id === id) || null;
-    }
+    if (error) throw error;
 
     return {
       id: data.id,
@@ -170,16 +241,34 @@ export const getCampaignById = async (id: string): Promise<Campaign | null> => {
       status: data.status,
       mode: data.mode,
       comboRules: data.combo_rules,
+      prizes: [], // Would need to fetch from a separate prizes table
       createdBy: data.created_by,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
     };
   } catch (error) {
+    console.error('Database operation failed, using mock data:', error);
     return mockCampaigns.find(c => c.id === id) || null;
   }
 };
 
 export const getCampaignTickets = async (campaignId: string): Promise<CampaignTicket[]> => {
+  const dbAvailable = await checkDatabase();
+  
+  if (!dbAvailable) {
+    // Return mock tickets for demo campaigns
+    const campaign = mockCampaigns.find(c => c.id === campaignId);
+    if (!campaign) return [];
+    
+    return Array.from({ length: campaign.totalTickets }, (_, i) => ({
+      id: `ticket-${campaignId}-${i + 1}`,
+      campaignId,
+      number: i + 1,
+      isPrize: false,
+      status: 'available' as const,
+    }));
+  }
+
   try {
     const { data, error } = await supabase
       .from('campaign_tickets')
@@ -187,19 +276,7 @@ export const getCampaignTickets = async (campaignId: string): Promise<CampaignTi
       .eq('campaign_id', campaignId)
       .order('number', { ascending: true });
 
-    if (error) {
-      // Return mock tickets for demo campaigns
-      const campaign = mockCampaigns.find(c => c.id === campaignId);
-      if (!campaign) return [];
-      
-      return Array.from({ length: campaign.totalTickets }, (_, i) => ({
-        id: `ticket-${campaignId}-${i + 1}`,
-        campaignId,
-        number: i + 1,
-        isPrize: false,
-        status: 'available' as const,
-      }));
-    }
+    if (error) throw error;
 
     return data.map(ticket => ({
       id: ticket.id,
@@ -212,6 +289,7 @@ export const getCampaignTickets = async (campaignId: string): Promise<CampaignTi
       purchaseDate: ticket.purchase_date,
     }));
   } catch (error) {
+    console.error('Database operation failed, using mock data:', error);
     // Return mock tickets for demo campaigns
     const campaign = mockCampaigns.find(c => c.id === campaignId);
     if (!campaign) return [];
@@ -227,6 +305,12 @@ export const getCampaignTickets = async (campaignId: string): Promise<CampaignTi
 };
 
 export const getBuyerRanking = async (campaignId: string): Promise<BuyerRanking[]> => {
+  const dbAvailable = await checkDatabase();
+  
+  if (!dbAvailable) {
+    return [];
+  }
+
   try {
     const { data, error } = await supabase
       .from('buyer_rankings')
@@ -234,9 +318,7 @@ export const getBuyerRanking = async (campaignId: string): Promise<BuyerRanking[
       .eq('campaign_id', campaignId)
       .order('tickets_bought', { ascending: false });
 
-    if (error) {
-      return [];
-    }
+    if (error) throw error;
 
     return data.map(ranking => ({
       userId: ranking.user_id,
@@ -245,6 +327,7 @@ export const getBuyerRanking = async (campaignId: string): Promise<BuyerRanking[
       participationPercentage: ranking.participation_percentage,
     }));
   } catch (error) {
+    console.error('Database operation failed:', error);
     return [];
   }
 };
@@ -254,6 +337,14 @@ export const purchaseTickets = async (
   userId: string,
   ticketNumbers: number[],
 ): Promise<void> => {
+  const dbAvailable = await checkDatabase();
+  
+  if (!dbAvailable) {
+    // For mock campaigns, just simulate the purchase
+    console.log(`Mock purchase: Campaign ${campaignId}, User ${userId}, Tickets ${ticketNumbers.join(', ')}`);
+    return;
+  }
+
   try {
     const { error } = await supabase
       .from('campaign_tickets')
@@ -266,11 +357,9 @@ export const purchaseTickets = async (
       .in('number', ticketNumbers)
       .eq('status', 'available');
 
-    if (error) {
-      // For mock campaigns, just simulate the purchase
-      console.log(`Mock purchase: Campaign ${campaignId}, User ${userId}, Tickets ${ticketNumbers.join(', ')}`);
-    }
+    if (error) throw error;
   } catch (error) {
+    console.error('Database operation failed:', error);
     // For mock campaigns, just simulate the purchase
     console.log(`Mock purchase: Campaign ${campaignId}, User ${userId}, Tickets ${ticketNumbers.join(', ')}`);
   }
@@ -280,21 +369,27 @@ export const updateCampaignStatus = async (
   campaignId: string,
   status: Campaign['status'],
 ): Promise<void> => {
+  const dbAvailable = await checkDatabase();
+  
+  if (!dbAvailable) {
+    // Update mock campaign
+    const campaign = mockCampaigns.find(c => c.id === campaignId);
+    if (campaign) {
+      campaign.status = status;
+      campaign.updatedAt = new Date().toISOString();
+    }
+    return;
+  }
+
   try {
     const { error } = await supabase
       .from('campaigns')
       .update({ status })
       .eq('id', campaignId);
 
-    if (error) {
-      // Update mock campaign
-      const campaign = mockCampaigns.find(c => c.id === campaignId);
-      if (campaign) {
-        campaign.status = status;
-        campaign.updatedAt = new Date().toISOString();
-      }
-    }
+    if (error) throw error;
   } catch (error) {
+    console.error('Database operation failed:', error);
     // Update mock campaign
     const campaign = mockCampaigns.find(c => c.id === campaignId);
     if (campaign) {

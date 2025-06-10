@@ -5,6 +5,7 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
+import { RegisterPage } from './pages/RegisterPage';
 import { RafflePage } from './pages/RafflePage';
 import { DashboardPage } from './pages/DashboardPage';
 import { CreateRafflePage } from './pages/CreateRafflePage';
@@ -16,6 +17,7 @@ import { AboutPage } from './pages/AboutPage';
 import { FAQPage } from './pages/FAQPage';
 import { PricingPage } from './pages/PricingPage';
 import { ContactPage } from './pages/ContactPage';
+import { hasActivePlan } from './services/authService';
 
 // Protected route wrapper
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -32,8 +34,8 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-// Admin route wrapper
-const AdminRoute = ({ children }: { children: React.ReactNode }) => {
+// Plan required route wrapper
+const PlanRequiredRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, user, isLoading } = useAuth();
   
   if (isLoading) {
@@ -44,8 +46,8 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
     return <Navigate to="/login" />;
   }
   
-  if (user?.role !== 'admin') {
-    return <Navigate to="/dashboard" />;
+  if (!user || (!hasActivePlan(user) && user.role !== 'admin')) {
+    return <Navigate to="/precos" />;
   }
   
   return <>{children}</>;
@@ -59,6 +61,7 @@ function App() {
           {/* Public routes */}
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
           <Route path="/rifas" element={<RafflesPage />} />
           <Route path="/rifas/:id" element={<RafflePage />} />
           <Route path="/campanhas" element={<CampaignsPage />} />
@@ -70,14 +73,6 @@ function App() {
           
           {/* Protected routes */}
           <Route 
-            path="/criar-rifa" 
-            element={
-              <ProtectedRoute>
-                <CreateRafflePage />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
             path="/dashboard/*" 
             element={
               <ProtectedRoute>
@@ -86,13 +81,22 @@ function App() {
             } 
           />
           
-          {/* Admin routes */}
+          {/* Plan required routes */}
+          <Route 
+            path="/criar-rifa" 
+            element={
+              <PlanRequiredRoute>
+                <CreateRafflePage />
+              </PlanRequiredRoute>
+            } 
+          />
+          
           <Route 
             path="/criar-campanha" 
             element={
-              <AdminRoute>
+              <PlanRequiredRoute>
                 <CreateCampaignPage />
-              </AdminRoute>
+              </PlanRequiredRoute>
             } 
           />
           

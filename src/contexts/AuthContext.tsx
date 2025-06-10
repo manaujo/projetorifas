@@ -1,10 +1,12 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { User, AuthState } from '../types';
-import { mockLogin } from '../services/authService';
+import { mockLogin, mockRegister } from '../services/authService';
 
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
+  updateUser: (updates: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -65,6 +67,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading: false,
         error: error instanceof Error ? error.message : 'Failed to login',
       });
+      throw error;
+    }
+  };
+
+  const register = async (name: string, email: string, password: string) => {
+    setAuthState(prev => ({ ...prev, isLoading: true, error: null }));
+    
+    try {
+      const user = await mockRegister(name, email, password);
+      
+      localStorage.setItem('rifativa_user', JSON.stringify(user));
+      
+      setAuthState({
+        user,
+        isAuthenticated: true,
+        isLoading: false,
+        error: null,
+      });
+    } catch (error) {
+      setAuthState({
+        user: null,
+        isAuthenticated: false,
+        isLoading: false,
+        error: error instanceof Error ? error.message : 'Failed to register',
+      });
+      throw error;
     }
   };
 
@@ -78,12 +106,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
+  const updateUser = (updates: Partial<User>) => {
+    if (authState.user) {
+      const updatedUser = { ...authState.user, ...updates };
+      localStorage.setItem('rifativa_user', JSON.stringify(updatedUser));
+      setAuthState(prev => ({
+        ...prev,
+        user: updatedUser,
+      }));
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
         ...authState,
         login,
+        register,
         logout,
+        updateUser,
       }}
     >
       {children}

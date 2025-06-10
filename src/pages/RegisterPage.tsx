@@ -9,7 +9,6 @@ import { useAuth } from "../contexts/AuthContext";
 import { Input } from "../components/ui/Input";
 import { Button } from "../components/ui/Button";
 import { Logo } from "../components/Logo";
-import { GoogleLoginButton } from "../components/GoogleLoginButton";
 
 const registerSchema = z
   .object({
@@ -27,7 +26,7 @@ type RegisterFormData = z.infer<typeof registerSchema>;
 
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
-  const { register: registerUser, loginWithGoogle, error } = useAuth();
+  const { register: registerUser, error } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -51,23 +50,6 @@ export const RegisterPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleGoogleSuccess = async (credential: string) => {
-    setIsLoading(true);
-    try {
-      await loginWithGoogle(credential);
-      toast.success("Login com Google realizado com sucesso!");
-      navigate("/dashboard");
-    } catch (err) {
-      // Error handling is done in AuthContext
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleGoogleError = () => {
-    toast.error("Falha ao fazer login com Google");
   };
 
   return (
@@ -207,10 +189,19 @@ export const RegisterPage: React.FC = () => {
             </div>
 
             <div className="mt-6 grid grid-cols-1 gap-3">
-              <GoogleLoginButton
-                onSuccess={handleGoogleSuccess}
-                onError={handleGoogleError}
-              />
+              <Button
+                type="button"
+                variant="outline"
+                fullWidth
+                disabled
+              >
+                <img
+                  className="h-5 w-5 mr-2"
+                  src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg"
+                  alt="Google logo"
+                />
+                Google (Em breve)
+              </Button>
             </div>
           </div>
         </div>

@@ -4,7 +4,71 @@ import { Raffle, RaffleNumber, Ticket } from '../types';
 // Mock storage for raffles when database is not available
 let mockRaffles: Raffle[] = [];
 
+// Initialize database schema if tables don't exist
+const initializeDatabase = async () => {
+  try {
+    // Check if tables exist by attempting a simple query
+    const { error: rafflesError } = await supabase
+      .from('raffles')
+      .select('id')
+      .limit(1);
+
+    const { error: numbersError } = await supabase
+      .from('raffle_numbers')
+      .select('id')
+      .limit(1);
+
+    const { error: ticketsError } = await supabase
+      .from('tickets')
+      .select('id')
+      .limit(1);
+
+    // If any table doesn't exist, we'll work with mock data
+    if (rafflesError || numbersError || ticketsError) {
+      console.warn('Database tables not found, using mock data. Please run the migration in Supabase SQL Editor.');
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.warn('Database connection failed, using mock data.');
+    return false;
+  }
+};
+
+let databaseAvailable: boolean | null = null;
+
+const checkDatabase = async () => {
+  if (databaseAvailable === null) {
+    databaseAvailable = await initializeDatabase();
+  }
+  return databaseAvailable;
+};
+
 export const createRaffle = async (raffleData: Omit<Raffle, 'id' | 'createdAt' | 'soldNumbers'>): Promise<Raffle> => {
+  const dbAvailable = await checkDatabase();
+  
+  if (!dbAvailable) {
+    // Create mock raffle
+    const mockRaffle: Raffle = {
+      id: `mock-${Date.now()}`,
+      title: raffleData.title,
+      description: raffleData.description,
+      price: raffleData.price,
+      totalNumbers: raffleData.totalNumbers,
+      imageUrl: raffleData.imageUrl,
+      drawDate: raffleData.drawDate,
+      status: raffleData.status,
+      createdBy: raffleData.createdBy,
+      createdAt: new Date().toISOString(),
+      isCharity: raffleData.isCharity,
+      soldNumbers: [],
+    };
+
+    mockRaffles.push(mockRaffle);
+    return mockRaffle;
+  }
+
   try {
     const { data, error } = await supabase
       .from('raffles')
@@ -22,26 +86,18 @@ export const createRaffle = async (raffleData: Omit<Raffle, 'id' | 'createdAt' |
       .select()
       .single();
 
-    if (error) {
-      // If database operation fails, create a mock raffle
-      const mockRaffle: Raffle = {
-        id: `mock-${Date.now()}`,
-        title: raffleData.title,
-        description: raffleData.description,
-        price: raffleData.price,
-        totalNumbers: raffleData.totalNumbers,
-        imageUrl: raffleData.imageUrl,
-        drawDate: raffleData.drawDate,
-        status: raffleData.status,
-        createdBy: raffleData.createdBy,
-        createdAt: new Date().toISOString(),
-        isCharity: raffleData.isCharity,
-        soldNumbers: [],
-      };
+    if (error) throw error;
 
-      mockRaffles.push(mockRaffle);
-      return mockRaffle;
-    }
+    // Create raffle numbers
+    const numbers = Array.from({ length: raffleData.totalNumbers }, (_, i) => ({
+      raffle_id: data.id,
+      number: i + 1,
+      status: 'available'
+    }));
+
+    await supabase
+      .from('raffle_numbers')
+      .insert(numbers);
 
     return {
       id: data.id,
@@ -58,7 +114,8 @@ export const createRaffle = async (raffleData: Omit<Raffle, 'id' | 'createdAt' |
       soldNumbers: [],
     };
   } catch (error) {
-    // If any error occurs, create a mock raffle
+    console.error('Database operation failed, using mock data:', error);
+    // Fallback to mock raffle
     const mockRaffle: Raffle = {
       id: `mock-${Date.now()}`,
       title: raffleData.title,
@@ -80,23 +137,25 @@ export const createRaffle = async (raffleData: Omit<Raffle, 'id' | 'createdAt' |
 };
 
 export const getRaffles = async (): Promise<Raffle[]> => {
+  const dbAvailable = await checkDatabase();
+  
+  if (!dbAvailable) {
+    return mockRaffles;
+  }
+
   try {
     const { data: rafflesData, error: rafflesError } = await supabase
       .from('raffles')
       .select('*');
 
-    if (rafflesError) {
-      return mockRaffles;
-    }
+    if (rafflesError) throw rafflesError;
 
     const { data: numbersData, error: numbersError } = await supabase
       .from('raffle_numbers')
       .select('raffle_id, number')
       .eq('status', 'sold');
 
-    if (numbersError) {
-      return mockRaffles;
-    }
+    if (numbersError) throw numbersError;
 
     // Group sold numbers by raffle_id
     const soldNumbersByRaffle = numbersData.reduce((acc: { [key: string]: number[] }, curr) => {
@@ -122,11 +181,18 @@ export const getRaffles = async (): Promise<Raffle[]> => {
       soldNumbers: soldNumbersByRaffle[raffle.id] || [],
     }));
   } catch (error) {
+    console.error('Database operation failed, using mock data:', error);
     return mockRaffles;
   }
 };
 
 export const getRaffleById = async (id: string): Promise<Raffle | null> => {
+  const dbAvailable = await checkDatabase();
+  
+  if (!dbAvailable) {
+    return mockRaffles.find(r => r.id === id) || null;
+  }
+
   try {
     const { data: raffle, error: raffleError } = await supabase
       .from('raffles')
@@ -134,9 +200,7 @@ export const getRaffleById = async (id: string): Promise<Raffle | null> => {
       .eq('id', id)
       .single();
 
-    if (raffleError) {
-      return mockRaffles.find(r => r.id === id) || null;
-    }
+    if (raffleError) throw raffleError;
 
     const { data: numbers, error: numbersError } = await supabase
       .from('raffle_numbers')
@@ -144,9 +208,7 @@ export const getRaffleById = async (id: string): Promise<Raffle | null> => {
       .eq('raffle_id', id)
       .eq('status', 'sold');
 
-    if (numbersError) {
-      return mockRaffles.find(r => r.id === id) || null;
-    }
+    if (numbersError) throw numbersError;
 
     return {
       id: raffle.id,
@@ -163,26 +225,31 @@ export const getRaffleById = async (id: string): Promise<Raffle | null> => {
       soldNumbers: numbers.map(n => n.number),
     };
   } catch (error) {
+    console.error('Database operation failed, using mock data:', error);
     return mockRaffles.find(r => r.id === id) || null;
   }
 };
 
 export const getRaffleNumbers = async (raffleId: string): Promise<RaffleNumber[]> => {
+  const dbAvailable = await checkDatabase();
+  
+  if (!dbAvailable) {
+    const raffle = mockRaffles.find(r => r.id === raffleId);
+    if (!raffle) return [];
+    
+    return Array.from({ length: raffle.totalNumbers }, (_, i) => ({
+      number: i + 1,
+      status: raffle.soldNumbers.includes(i + 1) ? 'sold' : 'available',
+    }));
+  }
+
   try {
     const { data, error } = await supabase
       .from('raffle_numbers')
       .select('*')
       .eq('raffle_id', raffleId);
 
-    if (error) {
-      const raffle = mockRaffles.find(r => r.id === raffleId);
-      if (!raffle) return [];
-      
-      return Array.from({ length: raffle.totalNumbers }, (_, i) => ({
-        number: i + 1,
-        status: 'available',
-      }));
-    }
+    if (error) throw error;
 
     return data.map(number => ({
       number: number.number,
@@ -190,17 +257,24 @@ export const getRaffleNumbers = async (raffleId: string): Promise<RaffleNumber[]
       userId: number.user_id,
     }));
   } catch (error) {
+    console.error('Database operation failed, using mock data:', error);
     const raffle = mockRaffles.find(r => r.id === raffleId);
     if (!raffle) return [];
     
     return Array.from({ length: raffle.totalNumbers }, (_, i) => ({
       number: i + 1,
-      status: 'available',
+      status: raffle.soldNumbers.includes(i + 1) ? 'sold' : 'available',
     }));
   }
 };
 
 export const getUserRaffles = async (userId: string): Promise<Raffle[]> => {
+  const dbAvailable = await checkDatabase();
+  
+  if (!dbAvailable) {
+    return mockRaffles.filter(r => r.createdBy === userId);
+  }
+
   try {
     // First check if the user has any tickets
     const { data: ticketsData, error: ticketsError } = await supabase
@@ -208,19 +282,17 @@ export const getUserRaffles = async (userId: string): Promise<Raffle[]> => {
       .select('raffle_id')
       .eq('user_id', userId);
 
-    if (ticketsError) {
-      return mockRaffles.filter(r => r.createdBy === userId);
-    }
+    if (ticketsError) throw ticketsError;
+
+    const raffleIds = ticketsData.map(t => t.raffle_id);
 
     // Get all raffles created by the user or where they have tickets
     const { data: rafflesData, error: rafflesError } = await supabase
       .from('raffles')
       .select('*')
-      .or(`created_by.eq.${userId},id.in.(${ticketsData.map(t => t.raffle_id).join(',')})`);
+      .or(`created_by.eq.${userId}${raffleIds.length > 0 ? `,id.in.(${raffleIds.join(',')})` : ''}`);
 
-    if (rafflesError) {
-      return mockRaffles.filter(r => r.createdBy === userId);
-    }
+    if (rafflesError) throw rafflesError;
 
     const { data: numbersData, error: numbersError } = await supabase
       .from('raffle_numbers')
@@ -228,9 +300,7 @@ export const getUserRaffles = async (userId: string): Promise<Raffle[]> => {
       .eq('status', 'sold')
       .in('raffle_id', rafflesData.map(r => r.id));
 
-    if (numbersError) {
-      return mockRaffles.filter(r => r.createdBy === userId);
-    }
+    if (numbersError) throw numbersError;
 
     const soldNumbersByRaffle = numbersData.reduce((acc: { [key: string]: number[] }, curr) => {
       if (!acc[curr.raffle_id]) {
@@ -255,11 +325,18 @@ export const getUserRaffles = async (userId: string): Promise<Raffle[]> => {
       soldNumbers: soldNumbersByRaffle[raffle.id] || [],
     }));
   } catch (error) {
+    console.error('Database operation failed, using mock data:', error);
     return mockRaffles.filter(r => r.createdBy === userId);
   }
 };
 
 export const getUserTickets = async (userId: string): Promise<Ticket[]> => {
+  const dbAvailable = await checkDatabase();
+  
+  if (!dbAvailable) {
+    return [];
+  }
+
   try {
     const { data, error } = await supabase
       .from('tickets')
@@ -271,7 +348,7 @@ export const getUserTickets = async (userId: string): Promise<Ticket[]> => {
       `)
       .eq('user_id', userId);
 
-    if (error) return [];
+    if (error) throw error;
 
     return data.map(ticket => ({
       id: ticket.id,
@@ -283,6 +360,7 @@ export const getUserTickets = async (userId: string): Promise<Ticket[]> => {
       paymentMethod: ticket.payment_method,
     }));
   } catch (error) {
+    console.error('Database operation failed:', error);
     return [];
   }
 };
@@ -293,6 +371,16 @@ export const purchaseTickets = async (
   numbers: number[],
   paymentMethod: 'pix' | 'credit_card'
 ): Promise<void> => {
+  const dbAvailable = await checkDatabase();
+  
+  if (!dbAvailable) {
+    const raffle = mockRaffles.find(r => r.id === raffleId);
+    if (raffle) {
+      raffle.soldNumbers = [...raffle.soldNumbers, ...numbers];
+    }
+    return;
+  }
+
   try {
     const { data: ticket, error: ticketError } = await supabase
       .from('tickets')
@@ -306,13 +394,7 @@ export const purchaseTickets = async (
       .select()
       .single();
 
-    if (ticketError) {
-      const raffle = mockRaffles.find(r => r.id === raffleId);
-      if (raffle) {
-        raffle.soldNumbers = [...raffle.soldNumbers, ...numbers];
-      }
-      return;
-    }
+    if (ticketError) throw ticketError;
 
     const { error: numbersError } = await supabase
       .from('raffle_numbers')
@@ -324,13 +406,9 @@ export const purchaseTickets = async (
       .eq('raffle_id', raffleId)
       .in('number', numbers);
 
-    if (numbersError) {
-      const raffle = mockRaffles.find(r => r.id === raffleId);
-      if (raffle) {
-        raffle.soldNumbers = [...raffle.soldNumbers, ...numbers];
-      }
-    }
+    if (numbersError) throw numbersError;
   } catch (error) {
+    console.error('Database operation failed, using mock data:', error);
     const raffle = mockRaffles.find(r => r.id === raffleId);
     if (raffle) {
       raffle.soldNumbers = [...raffle.soldNumbers, ...numbers];

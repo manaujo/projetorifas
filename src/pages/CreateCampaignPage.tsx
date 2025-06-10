@@ -1,16 +1,23 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import { Camera, DollarSign, Hash, AlertTriangle, Save, Eye, Megaphone, Gift } from 'lucide-react';
+import { Camera, DollarSign, Hash, AlertTriangle, Save, Eye, Megaphone, Gift, Plus, Trash2 } from 'lucide-react';
 import { Layout } from '../components/layout/Layout';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
+import { hasActivePlan } from '../services/authService';
 import { createCampaign } from '../services/campaignService';
+
+const prizeSchema = z.object({
+  title: z.string().min(3, 'Título do prêmio deve ter pelo menos 3 caracteres'),
+  description: z.string().min(10, 'Descrição deve ter pelo menos 10 caracteres'),
+  imageUrl: z.string().url('URL da imagem inválida').optional(),
+});
 
 const createCampaignSchema = z.object({
   title: z.string()
@@ -30,7 +37,7 @@ const createCampaignSchema = z.object({
   mode: z.enum(['simple', 'combo']).default('simple'),
   comboBuy: z.number().optional(),
   comboGet: z.number().optional(),
-  status: z.enum(['draft', 'active']).default('draft'),
+  prizes: z.array(prizeSchema).min(1, 'Adicione pelo menos um prêmio'),
 });
 
 type CreateCampaignFormData = z.infer<typeof createCampaignSchema>;
@@ -45,26 +52,56 @@ export const CreateCampaignPage: React.FC = () => {
     register,
     handleSubmit,
     watch,
+    control,
     formState: { errors },
   } = useForm<CreateCampaignFormData>({
     resolver: zodResolver(createCampaignSchema),
     mode: 'onChange',
     defaultValues: {
-      status: 'draft',
       featured: false,
       mode: 'simple',
+      prizes: [{ title: '', description: '', imageUrl: '' }],
     }
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: 'prizes',
   });
 
   const formValues = watch();
   const isComboMode = watch('mode') === 'combo';
 
-  const onSubmit = async (data: CreateCampaignFormData) => {
-    if (!user || user.role !== 'admin') {
-      toast.error('Apenas administradores podem criar campanhas');
-      return;
-    }
+  // Check if user has permission to create campaigns
+  if (!user || (!hasActivePlan(user) && user.role !== 'admin')) {
+    return (
+      <Layout>
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-md mx-auto text-center">
+            <div className="bg-white rounded-lg shadow-card p-8">
+              <AlertTriangle className="mx-auto h-12 w-12 text-warning-500 mb-4" />
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                Plano Necessário
+              </h2>
+              <p className="text-gray-600 mb-4">
+                Para criar campanhas, você precisa de um plano ativo.
+              </p>
+              <div className="space-y-3">
+                <Button onClick={() => navigate('/precos')} fullWidth>
+                  Ver Planos
+                </Button>
+                <Button variant="outline" onClick={() => navigate('/campanhas')} fullWidth>
+                  Ver Campanhas Disponíveis
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
+  const onSubmit = async (data: CreateCampaignFormData) => {
     try {
       setIsSubmitting(true);
       
@@ -81,6 +118,13 @@ export const CreateCampaignPage: React.FC = () => {
           buy: data.comboBuy,
           get: data.comboGet,
         } : undefined,
+        prizes: data.prizes.map((prize, index) => ({
+          id: `prize-${index + 1}`,
+          title: prize.title,
+          description: prize.description,
+          imageUrl: prize.imageUrl,
+          position: index + 1,
+        })),
         createdBy: user.id,
       };
 
@@ -96,11 +140,6 @@ export const CreateCampaignPage: React.FC = () => {
   };
 
   const handleSaveAsDraft = async () => {
-    if (!user || user.role !== 'admin') {
-      toast.error('Apenas administradores podem criar campanhas');
-      return;
-    }
-
     const formData = watch();
     try {
       setIsSubmitting(true);
@@ -118,6 +157,13 @@ export const CreateCampaignPage: React.FC = () => {
           buy: formData.comboBuy,
           get: formData.comboGet,
         } : undefined,
+        prizes: formData.prizes.map((prize, index) => ({
+          id: `prize-${index + 1}`,
+          title: prize.title,
+          description: prize.description,
+          imageUrl: prize.imageUrl,
+          position: index + 1,
+        })),
         createdBy: user.id,
       };
 
@@ -131,29 +177,6 @@ export const CreateCampaignPage: React.FC = () => {
       setIsSubmitting(false);
     }
   };
-
-  if (!user || user.role !== 'admin') {
-    return (
-      <Layout>
-        <div className="container mx-auto px-4 py-8">
-          <div className="max-w-md mx-auto text-center">
-            <div className="bg-white rounded-lg shadow-card p-8">
-              <AlertTriangle className="mx-auto h-12 w-12 text-warning-500 mb-4" />
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                Acesso Restrito
-              </h2>
-              <p className="text-gray-600 mb-4">
-                Apenas administradores podem criar campanhas.
-              </p>
-              <Button onClick={() => navigate('/campanhas')}>
-                Ver Campanhas Disponíveis
-              </Button>
-            </div>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
 
   return (
     <Layout>
@@ -300,6 +323,79 @@ export const CreateCampaignPage: React.FC = () => {
                         </div>
                       </div>
                     )}
+                  </div>
+                </div>
+
+                {/* Prizes Section */}
+                <div>
+                  <h2 className="font-display font-semibold text-xl text-gray-900 mb-4 flex items-center">
+                    <Gift className="mr-2" size={20} />
+                    Prêmios da Campanha
+                  </h2>
+                  
+                  <div className="space-y-4">
+                    {fields.map((field, index) => (
+                      <div key={field.id} className="border border-gray-200 rounded-lg p-4">
+                        <div className="flex justify-between items-center mb-3">
+                          <h4 className="font-medium text-gray-900">Prêmio {index + 1}</h4>
+                          {fields.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => remove(index)}
+                              leftIcon={<Trash2 size={16} />}
+                            >
+                              Remover
+                            </Button>
+                          )}
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <Input
+                            label="Título do Prêmio"
+                            placeholder="Ex: iPhone 15 Pro Max"
+                            error={errors.prizes?.[index]?.title?.message}
+                            {...register(`prizes.${index}.title`)}
+                          />
+                          
+                          <Input
+                            label="URL da Imagem (opcional)"
+                            placeholder="https://exemplo.com/premio.jpg"
+                            error={errors.prizes?.[index]?.imageUrl?.message}
+                            {...register(`prizes.${index}.imageUrl`)}
+                          />
+                        </div>
+                        
+                        <div className="mt-4">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Descrição do Prêmio
+                          </label>
+                          <textarea
+                            className={`w-full px-4 py-2 border rounded-md shadow-sm text-sm
+                              focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500
+                              ${errors.prizes?.[index]?.description ? 'border-error-500' : 'border-gray-300'}`}
+                            rows={3}
+                            placeholder="Descreva o prêmio em detalhes..."
+                            {...register(`prizes.${index}.description`)}
+                          />
+                          {errors.prizes?.[index]?.description && (
+                            <p className="mt-1 text-sm text-error-500">
+                              {errors.prizes[index]?.description?.message}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    
+                    <Button
+                      type="button"
+                      variant="outline"
+                      leftIcon={<Plus size={16} />}
+                      onClick={() => append({ title: '', description: '', imageUrl: '' })}
+                    >
+                      Adicionar Prêmio
+                    </Button>
                   </div>
                 </div>
 

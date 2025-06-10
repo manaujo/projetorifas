@@ -6,20 +6,24 @@ import { ptBR } from 'date-fns/locale';
 import { Share2, Clock, Calendar, Award, BadgeCheck, AlertTriangle, DollarSign } from 'lucide-react';
 import { Layout } from '../components/layout/Layout';
 import { Button } from '../components/ui/Button';
+import { PurchaseModal } from '../components/PurchaseModal';
 import { Raffle, RaffleNumber } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { getRaffleById, getRaffleNumbers, purchaseTickets } from '../services/raffleService';
+import { getUserById } from '../services/authService';
+import { toast } from 'react-hot-toast';
 
 export const RafflePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { isAuthenticated, user } = useAuth();
+  const { user } = useAuth();
   const [raffle, setRaffle] = useState<Raffle | null>(null);
   const [raffleNumbers, setRaffleNumbers] = useState<RaffleNumber[]>([]);
   const [selectedNumbers, setSelectedNumbers] = useState<number[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'pix' | 'credit_card'>('pix');
+  const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
+  const [creatorPixKey, setCreatorPixKey] = useState<string>('');
   
   useEffect(() => {
     const fetchRaffleData = async () => {
@@ -30,16 +34,23 @@ export const RafflePage: React.FC = () => {
         const raffleData = await getRaffleById(id);
         
         if (!raffleData) {
-          navigate('/raffles');
+          navigate('/rifas');
           return;
         }
         
         setRaffle(raffleData);
         
+        // Get creator's PIX key
+        const creator = await getUserById(raffleData.createdBy);
+        if (creator?.pixKey) {
+          setCreatorPixKey(creator.pixKey);
+        }
+        
         const numbers = await getRaffleNumbers(id);
         setRaffleNumbers(numbers);
       } catch (error) {
         console.error('Failed to fetch raffle data', error);
+        toast.error('Erro ao carregar dados da rifa');
       } finally {
         setIsLoading(false);
       }
@@ -49,11 +60,6 @@ export const RafflePage: React.FC = () => {
   }, [id, navigate]);
   
   const handleNumberClick = (number: number) => {
-    if (!isAuthenticated) {
-      navigate('/login');
-      return;
-    }
-    
     const isAvailable = raffleNumbers.find(n => n.number === number)?.status === 'available';
     
     if (!isAvailable) return;
@@ -66,19 +72,63 @@ export const RafflePage: React.FC = () => {
       }
     });
   };
+
+  const handleRandomSelection = () => {
+    const availableNumbers = raffleNumbers
+      .filter(n => n.status === 'available')
+      .map(n => n.number);
+    
+    if (availableNumbers.length === 0) return;
+    
+    const randomCount = Math.min(5, availableNumbers.length);
+    const randomNumbers: number[] = [];
+    
+    while (randomNumbers.length < randomCount) {
+      const randomIndex = Math.floor(Math.random() * availableNumbers.length);
+      const number = availableNumbers[randomIndex];
+      if (!randomNumbers.includes(number)) {
+        randomNumbers.push(number);
+      }
+    }
+    
+    setSelectedNumbers(randomNumbers);
+  };
   
-  const handleSubmit = async () => {
-    if (!isAuthenticated || !user || !raffle || selectedNumbers.length === 0) return;
+  const handlePurchaseClick = () => {
+    if (selectedNumbers.length === 0) {
+      toast.error('Selecione pelo menos um número');
+      return;
+    }
+    
+    if (!creatorPixKey) {
+      toast.error('Chave PIX do criador não encontrada');
+      return;
+    }
+    
+    setIsPurchaseModalOpen(true);
+  };
+  
+  const handleConfirmPurchase = async (buyerInfo: { name: string; cpf: string; phone: string }) => {
+    if (!raffle || selectedNumbers.length === 0) return;
     
     try {
       setIsSubmitting(true);
-      await purchaseTickets(raffle.id, user.id, selectedNumbers, paymentMethod);
       
-      // In a real app, redirect to payment page
-      // For now, just navigate to a success page
-      navigate('/payment-success');
+      // Create a guest user ID for tracking
+      const guestUserId = `guest-${Date.now()}`;
+      
+      await purchaseTickets(raffle.id, guestUserId, selectedNumbers, 'pix');
+      
+      toast.success('Compra realizada com sucesso! Aguarde a confirmação do pagamento.');
+      
+      // Refresh numbers
+      const updatedNumbers = await getRaffleNumbers(raffle.id);
+      setRaffleNumbers(updatedNumbers);
+      setSelectedNumbers([]);
+      
     } catch (error) {
       console.error('Failed to purchase tickets', error);
+      toast.error('Erro ao processar compra');
     } finally {
       setIsSubmitting(false);
     }
@@ -124,7 +174,7 @@ export const RafflePage: React.FC = () => {
             </li>
             <li className="mx-2">/</li>
             <li>
-              <a href="/raffles" className="hover:text-primary-500">Rifas</a>
+              <a href="/rifas" className="hover:text-primary-500">Rifas</a>
             </li>
             <li className="mx-2">/</li>
             <li className="text-gray-900">{raffle.title}</li>
@@ -232,9 +282,18 @@ export const RafflePage: React.FC = () => {
           >
             <div className="bg-white rounded-lg shadow-card overflow-hidden">
               <div className="p-6 border-b">
-                <h2 className="font-display font-semibold text-xl text-gray-900 mb-2">
-                  Escolha seus números
-                </h2>
+                <div className="flex justify-between items-center mb-2">
+                  <h2 className="font-display font-semibold text-xl text-gray-900">
+                    Escolha seus números
+                  </h2>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRandomSelection}
+                  >
+                    Surpresinha
+                  </Button>
+                </div>
                 <p className="text-gray-600 text-sm">
                   Selecione os números que deseja comprar.
                 </p>
@@ -300,51 +359,19 @@ export const RafflePage: React.FC = () => {
                     </span>
                   </div>
                   
-                  <div className="mb-4">
-                    <h3 className="text-sm font-medium text-gray-700 mb-2">Forma de pagamento</h3>
-                    <div className="flex space-x-3">
-                      <button
-                        type="button"
-                        className={`flex items-center px-4 py-2 rounded-md border ${
-                          paymentMethod === 'pix'
-                            ? 'border-primary-500 bg-primary-50 text-primary-600'
-                            : 'border-gray-300 hover:border-gray-400'
-                        }`}
-                        onClick={() => setPaymentMethod('pix')}
-                      >
-                        <img src="https://images.pexels.com/photos/8447653/pexels-photo-8447653.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1" alt="Pix" className="h-6 w-auto mr-2" />
-                        <span>PIX</span>
-                      </button>
-                      
-                      <button
-                        type="button"
-                        className={`flex items-center px-4 py-2 rounded-md border ${
-                          paymentMethod === 'credit_card'
-                            ? 'border-primary-500 bg-primary-50 text-primary-600'
-                            : 'border-gray-300 hover:border-gray-400'
-                        }`}
-                        onClick={() => setPaymentMethod('credit_card')}
-                      >
-                        <img src="https://images.pexels.com/photos/5865196/pexels-photo-5865196.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1" alt="Credit Card" className="h-6 w-auto mr-2" />
-                        <span>Cartão</span>
-                      </button>
-                    </div>
-                  </div>
-                  
                   <Button
                     fullWidth
                     size="lg"
-                    isLoading={isSubmitting}
-                    onClick={handleSubmit}
-                    disabled={selectedNumbers.length === 0}
+                    onClick={handlePurchaseClick}
+                    disabled={selectedNumbers.length === 0 || !creatorPixKey}
                   >
-                    Finalizar Compra
+                    Comprar Números
                   </Button>
                   
                   <div className="mt-4 text-xs text-gray-500 flex items-start">
                     <AlertTriangle size={14} className="mr-1 mt-0.5 flex-shrink-0" />
                     <span>
-                      Ao finalizar a compra, você concorda com os Termos de Uso e Política de Privacidade da Rifativa.
+                      Você não precisa criar conta. Após a compra, seus dados serão salvos para contato em caso de vitória.
                     </span>
                   </div>
                 </div>
@@ -353,6 +380,16 @@ export const RafflePage: React.FC = () => {
           </motion.div>
         </div>
       </div>
+
+      <PurchaseModal
+        isOpen={isPurchaseModalOpen}
+        onClose={() => setIsPurchaseModalOpen(false)}
+        selectedNumbers={selectedNumbers}
+        totalPrice={totalPrice}
+        pixKey={creatorPixKey}
+        itemTitle={raffle.title}
+        onConfirmPurchase={handleConfirmPurchase}
+      />
     </Layout>
   );
 };

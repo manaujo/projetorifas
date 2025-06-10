@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Ticket, User, LogOut, Menu, X, Home, Gift, PlusCircle, Megaphone } from 'lucide-react';
+import { Ticket, User, LogOut, Menu, X, Home, Gift, PlusCircle, Megaphone, Crown } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { hasActivePlan } from '../../services/authService';
 import { Button } from '../ui/Button';
 import { Logo } from '../Logo';
 
@@ -12,6 +13,8 @@ export const Navbar: React.FC = () => {
   
   const toggleMenu = () => setMenuOpen(!menuOpen);
   const closeMenu = () => setMenuOpen(false);
+  
+  const canCreateContent = user && (hasActivePlan(user) || user.role === 'admin');
   
   return (
     <header className="bg-white shadow-sm fixed w-full top-0 z-50">
@@ -99,18 +102,29 @@ export const Navbar: React.FC = () => {
           <div className="hidden md:flex items-center space-x-4">
             {isAuthenticated ? (
               <div className="flex items-center space-x-2">
-                {user?.role === 'admin' && (
-                  <Link to="/criar-campanha">
-                    <Button variant="ghost\" leftIcon={<Megaphone size={16} />} className="mr-2">
-                      Nova Campanha
+                {!canCreateContent && user?.role !== 'admin' && (
+                  <Link to="/precos">
+                    <Button variant="secondary\" leftIcon={<Crown size={16} />} size="sm">
+                      Upgrade
                     </Button>
                   </Link>
                 )}
-                <Link to="/criar-rifa">
-                  <Button variant="ghost" leftIcon={<PlusCircle size={16} />} className="mr-2">
-                    Nova Rifa
-                  </Button>
-                </Link>
+                
+                {canCreateContent && (
+                  <>
+                    <Link to="/criar-campanha">
+                      <Button variant="ghost" leftIcon={<Megaphone size={16} />} className="mr-2">
+                        Nova Campanha
+                      </Button>
+                    </Link>
+                    <Link to="/criar-rifa">
+                      <Button variant="ghost" leftIcon={<PlusCircle size={16} />} className="mr-2">
+                        Nova Rifa
+                      </Button>
+                    </Link>
+                  </>
+                )}
+                
                 <Link to="/dashboard">
                   <Button variant="ghost" leftIcon={<User size={16} />} className="mr-2">
                     Minha Conta
@@ -208,7 +222,7 @@ export const Navbar: React.FC = () => {
                 onClick={closeMenu}
               >
                 <div className="flex items-center">
-                  <Ticket size={18} className="mr-2" />
+                  <Crown size={18} className="mr-2" />
                   Preços
                 </div>
               </Link>
@@ -227,28 +241,44 @@ export const Navbar: React.FC = () => {
             <div className="mt-3 px-2 space-y-1">
               {isAuthenticated ? (
                 <>
-                  {user?.role === 'admin' && (
+                  {!canCreateContent && user?.role !== 'admin' && (
                     <Link 
-                      to="/criar-campanha" 
-                      className="block px-3 py-2 rounded-md text-base font-medium text-primary-600 hover:bg-primary-50"
+                      to="/precos" 
+                      className="block px-3 py-2 rounded-md text-base font-medium text-gold-600 hover:bg-gold-50"
                       onClick={closeMenu}
                     >
                       <div className="flex items-center">
-                        <Megaphone size={18} className="mr-2" />
-                        Nova Campanha
+                        <Crown size={18} className="mr-2" />
+                        Upgrade para Premium
                       </div>
                     </Link>
                   )}
-                  <Link 
-                    to="/criar-rifa" 
-                    className="block px-3 py-2 rounded-md text-base font-medium text-primary-600 hover:bg-primary-50"
-                    onClick={closeMenu}
-                  >
-                    <div className="flex items-center">
-                      <PlusCircle size={18} className="mr-2" />
-                      Nova Rifa
-                    </div>
-                  </Link>
+                  
+                  {canCreateContent && (
+                    <>
+                      <Link 
+                        to="/criar-campanha" 
+                        className="block px-3 py-2 rounded-md text-base font-medium text-primary-600 hover:bg-primary-50"
+                        onClick={closeMenu}
+                      >
+                        <div className="flex items-center">
+                          <Megaphone size={18} className="mr-2" />
+                          Nova Campanha
+                        </div>
+                      </Link>
+                      <Link 
+                        to="/criar-rifa" 
+                        className="block px-3 py-2 rounded-md text-base font-medium text-primary-600 hover:bg-primary-50"
+                        onClick={closeMenu}
+                      >
+                        <div className="flex items-center">
+                          <PlusCircle size={18} className="mr-2" />
+                          Nova Rifa
+                        </div>
+                      </Link>
+                    </>
+                  )}
+                  
                   <Link 
                     to="/dashboard" 
                     className="block px-3 py-2 rounded-md text-base font-medium text-primary-600 hover:bg-primary-50"

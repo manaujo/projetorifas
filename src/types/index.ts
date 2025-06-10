@@ -5,6 +5,9 @@ export interface User {
   role: 'admin' | 'user';
   createdAt: string;
   balance: number;
+  pixKey?: string;
+  plan?: 'free' | 'basic' | 'premium';
+  planExpiresAt?: string;
 }
 
 export interface Raffle {
@@ -20,16 +23,22 @@ export interface Raffle {
   createdAt: string;
   isCharity: boolean;
   soldNumbers: number[];
+  pixKey?: string;
 }
 
 export interface Ticket {
   id: string;
   raffleId: string;
-  userId: string;
+  userId?: string;
   numbers: number[];
   purchaseDate: string;
   paymentStatus: 'pending' | 'completed' | 'failed';
   paymentMethod: 'pix' | 'credit_card';
+  buyerInfo?: {
+    name: string;
+    cpf: string;
+    phone: string;
+  };
 }
 
 export interface RaffleNumber {
@@ -59,9 +68,19 @@ export interface Campaign {
     buy: number;
     get: number;
   };
+  prizes: Prize[];
   createdBy: string;
   createdAt: string;
   updatedAt: string;
+  pixKey?: string;
+}
+
+export interface Prize {
+  id: string;
+  title: string;
+  description: string;
+  imageUrl?: string;
+  position: number;
 }
 
 export interface CampaignTicket {
@@ -73,6 +92,11 @@ export interface CampaignTicket {
   status: 'available' | 'reserved' | 'sold';
   userId?: string;
   purchaseDate?: string;
+  buyerInfo?: {
+    name: string;
+    cpf: string;
+    phone: string;
+  };
 }
 
 export interface BuyerRanking {
@@ -80,4 +104,20 @@ export interface BuyerRanking {
   userName: string;
   ticketsBought: number;
   participationPercentage: number;
+}
+
+export interface Purchase {
+  id: string;
+  type: 'raffle' | 'campaign';
+  itemId: string;
+  buyerInfo: {
+    name: string;
+    cpf: string;
+    phone: string;
+  };
+  numbers: number[];
+  totalAmount: number;
+  pixKey: string;
+  status: 'pending' | 'completed' | 'failed';
+  createdAt: string;
 }
