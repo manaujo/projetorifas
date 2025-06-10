@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import { Camera, DollarSign, Hash, AlertTriangle, Save, Eye, Megaphone, Gift, Plus, Trash2, CreditCard } from 'lucide-react';
+import { Camera, DollarSign, Hash, AlertTriangle, Save, Eye, Megaphone, Gift, Plus, Trash2, CreditCard, Target, Percent } from 'lucide-react';
 import { Layout } from '../components/layout/Layout';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
@@ -18,6 +18,12 @@ const prizeSchema = z.object({
   title: z.string().min(3, 'Título do prêmio deve ter pelo menos 3 caracteres'),
   description: z.string().min(10, 'Descrição deve ter pelo menos 10 caracteres'),
   imageUrl: z.string().optional(),
+  type: z.enum(['main', 'biggest_buyer', 'winning_ticket']),
+});
+
+const promotionSchema = z.object({
+  quantity: z.number().min(1, 'Quantidade deve ser maior que 0'),
+  price: z.number().min(0.01, 'Preço deve ser maior que 0'),
 });
 
 const createCampaignSchema = z.object({
@@ -28,11 +34,11 @@ const createCampaignSchema = z.object({
     .min(20, 'A descrição deve ter pelo menos 20 caracteres')
     .max(500, 'A descrição deve ter no máximo 500 caracteres'),
   ticketPrice: z.number()
-    .min(1, 'O valor mínimo é R$ 1,00')
+    .min(0.01, 'O valor mínimo é R$ 0,01')
     .max(1000, 'O valor máximo é R$ 1.000,00'),
   totalTickets: z.number()
     .min(10, 'Mínimo de 10 bilhetes')
-    .max(100000, 'Máximo de 100.000 bilhetes'),
+    .max(1000000, 'Máximo de 1.000.000 bilhetes'),
   coverImage: z.string().min(1, 'Imagem é obrigatória'),
   pixKey: z.string()
     .min(1, 'Chave PIX é obrigatória')
@@ -41,7 +47,12 @@ const createCampaignSchema = z.object({
   mode: z.enum(['simple', 'combo']).default('simple'),
   comboBaseValue: z.number().optional(),
   comboNumbersPerValue: z.number().optional(),
+  winningTicket: z.string()
+    .min(6, 'Bilhete premiado deve ter 6 dígitos')
+    .max(6, 'Bilhete premiado deve ter 6 dígitos')
+    .regex(/^\d{6}$/, 'Bilhete premiado deve conter apenas números'),
   prizes: z.array(prizeSchema).min(1, 'Adicione pelo menos um prêmio'),
+  promotions: z.array(promotionSchema).optional(),
 });
 
 type CreateCampaignFormData = z.infer<typeof createCampaignSchema>;
@@ -66,13 +77,29 @@ export const CreateCampaignPage: React.FC = () => {
       featured: false,
       mode: 'simple',
       coverImage: '',
-      prizes: [{ title: '', description: '', imageUrl: '' }],
+      winningTicket: '',
+      prizes: [{ 
+        title: '', 
+        description: '', 
+        imageUrl: '', 
+        type: 'main' 
+      }],
+      promotions: [
+        { quantity: 10, price: 0 },
+        { quantity: 20, price: 0 },
+        { quantity: 50, price: 0 },
+      ],
     }
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields: prizeFields, append: appendPrize, remove: removePrize } = useFieldArray({
     control,
     name: 'prizes',
+  });
+
+  const { fields: promotionFields, append: appendPromotion, remove: removePromotion } = useFieldArray({
+    control,
+    name: 'promotions',
   });
 
   const formValues = watch();
@@ -107,6 +134,16 @@ export const CreateCampaignPage: React.FC = () => {
     );
   }
 
+  const generateRandomTicket = () => {
+    const randomTicket = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+    setValue('winningTicket', randomTicket);
+  };
+
+  const calculatePromotionSavings = (quantity: number, price: number) => {
+    const regularPrice = quantity * (formValues.ticketPrice || 0);
+    return regularPrice - price;
+  };
+
   const onSubmit = async (data: CreateCampaignFormData) => {
     try {
       setIsSubmitting(true);
@@ -132,7 +169,14 @@ export const CreateCampaignPage: React.FC = () => {
           description: prize.description,
           imageUrl: prize.imageUrl || '',
           position: index + 1,
+          type: prize.type,
         })),
+        promotions: data.promotions?.map((promo, index) => ({
+          id: `promo-${index + 1}`,
+          quantity: promo.quantity,
+          price: promo.price,
+        })) || [],
+        winningTicket: data.winningTicket,
         createdBy: user.id,
         pixKey: data.pixKey,
       };
@@ -177,7 +221,14 @@ export const CreateCampaignPage: React.FC = () => {
           description: prize.description,
           imageUrl: prize.imageUrl || '',
           position: index + 1,
+          type: prize.type,
         })),
+        promotions: formData.promotions?.map((promo, index) => ({
+          id: `promo-${index + 1}`,
+          quantity: promo.quantity,
+          price: promo.price,
+        })) || [],
+        winningTicket: formData.winningTicket,
         createdBy: user.id,
         pixKey: formData.pixKey,
       };
@@ -196,7 +247,7 @@ export const CreateCampaignPage: React.FC = () => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-4xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -209,13 +260,13 @@ export const CreateCampaignPage: React.FC = () => {
                   Criar Nova Campanha
                 </h1>
                 <p className="text-gray-600">
-                  Configure uma campanha promocional com múltiplos prêmios
+                  Configure uma campanha promocional com múltiplos prêmios e promoções
                 </p>
               </div>
             </div>
 
             <div className="bg-white rounded-lg shadow-card p-6">
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
                 {/* Basic Information */}
                 <div>
                   <h2 className="font-display font-semibold text-xl text-gray-900 mb-4 flex items-center">
@@ -226,7 +277,7 @@ export const CreateCampaignPage: React.FC = () => {
                   <div className="space-y-4">
                     <Input
                       label="Título da Campanha"
-                      placeholder="Ex: Mega Campanha de Natal"
+                      placeholder="Ex: VW T‑CROSS TSI COMFORTLINE 2022 OU R$ 115.000,00 NO PIX"
                       error={errors.title?.message}
                       {...register('title')}
                     />
@@ -259,6 +310,129 @@ export const CreateCampaignPage: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Campaign Settings */}
+                <div>
+                  <h2 className="font-display font-semibold text-xl text-gray-900 mb-4 flex items-center">
+                    <DollarSign className="mr-2" size={20} />
+                    Configurações da Campanha
+                  </h2>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      label="Valor por Bilhete (R$)"
+                      placeholder="2.50"
+                      error={errors.ticketPrice?.message}
+                      {...register('ticketPrice', { valueAsNumber: true })}
+                    />
+
+                    <Input
+                      type="number"
+                      label="Quantidade de Bilhetes"
+                      placeholder="100000"
+                      error={errors.totalTickets?.message}
+                      {...register('totalTickets', { valueAsNumber: true })}
+                    />
+                  </div>
+
+                  {/* Winning Ticket */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Bilhete Premiado
+                    </label>
+                    <div className="flex space-x-2">
+                      <Input
+                        placeholder="000000"
+                        maxLength={6}
+                        error={errors.winningTicket?.message}
+                        {...register('winningTicket')}
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={generateRandomTicket}
+                        leftIcon={<Target size={16} />}
+                      >
+                        Gerar Aleatório
+                      </Button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Número de 6 dígitos que será o bilhete premiado especial
+                    </p>
+                  </div>
+                </div>
+
+                {/* Promotions Section */}
+                <div>
+                  <h2 className="font-display font-semibold text-xl text-gray-900 mb-4 flex items-center">
+                    <Percent className="mr-2" size={20} />
+                    Promoções de Bilhetes
+                  </h2>
+                  
+                  <div className="space-y-4">
+                    {promotionFields.map((field, index) => (
+                      <div key={field.id} className="border border-gray-200 rounded-lg p-4">
+                        <div className="flex justify-between items-center mb-3">
+                          <h4 className="font-medium text-gray-900">Promoção {index + 1}</h4>
+                          {promotionFields.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removePromotion(index)}
+                              leftIcon={<Trash2 size={16} />}
+                            >
+                              Remover
+                            </Button>
+                          )}
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <Input
+                            type="number"
+                            label="Quantidade de Bilhetes"
+                            placeholder="10"
+                            error={errors.promotions?.[index]?.quantity?.message}
+                            {...register(`promotions.${index}.quantity`, { valueAsNumber: true })}
+                          />
+                          
+                          <Input
+                            type="number"
+                            step="0.01"
+                            label="Preço Total (R$)"
+                            placeholder="19.50"
+                            error={errors.promotions?.[index]?.price?.message}
+                            {...register(`promotions.${index}.price`, { valueAsNumber: true })}
+                          />
+
+                          <div className="flex items-end">
+                            <div className="text-sm">
+                              <div className="text-gray-600">Economia:</div>
+                              <div className="font-bold text-success-600">
+                                R$ {calculatePromotionSavings(
+                                  formValues.promotions?.[index]?.quantity || 0,
+                                  formValues.promotions?.[index]?.price || 0
+                                ).toFixed(2)}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    <Button
+                      type="button"
+                      variant="outline"
+                      leftIcon={<Plus size={16} />}
+                      onClick={() => appendPromotion({ quantity: 0, price: 0 })}
+                    >
+                      Adicionar Promoção
+                    </Button>
+                  </div>
+                </div>
+
                 {/* Payment Information */}
                 <div>
                   <h2 className="font-display font-semibold text-xl text-gray-900 mb-4 flex items-center">
@@ -275,98 +449,6 @@ export const CreateCampaignPage: React.FC = () => {
                   />
                 </div>
 
-                {/* Campaign Settings */}
-                <div>
-                  <h2 className="font-display font-semibold text-xl text-gray-900 mb-4 flex items-center">
-                    <DollarSign className="mr-2" size={20} />
-                    Configurações da Campanha
-                  </h2>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <Input
-                      type="number"
-                      label="Valor por Bilhete (R$)"
-                      placeholder="10.00"
-                      error={errors.ticketPrice?.message}
-                      {...register('ticketPrice', { valueAsNumber: true })}
-                    />
-
-                    <Input
-                      type="number"
-                      label="Quantidade de Bilhetes"
-                      placeholder="1000"
-                      error={errors.totalTickets?.message}
-                      {...register('totalTickets', { valueAsNumber: true })}
-                    />
-                  </div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Modo da Campanha
-                      </label>
-                      <div className="grid grid-cols-2 gap-4">
-                        <label className="flex items-center p-4 border rounded-lg cursor-pointer hover:bg-gray-50">
-                          <input
-                            type="radio"
-                            value="simple"
-                            className="mr-3"
-                            {...register('mode')}
-                          />
-                          <div>
-                            <div className="font-medium">Simples</div>
-                            <div className="text-sm text-gray-500">Compra individual de bilhetes</div>
-                          </div>
-                        </label>
-                        <label className="flex items-center p-4 border rounded-lg cursor-pointer hover:bg-gray-50">
-                          <input
-                            type="radio"
-                            value="combo"
-                            className="mr-3"
-                            {...register('mode')}
-                          />
-                          <div>
-                            <div className="font-medium">Combo por Valor</div>
-                            <div className="text-sm text-gray-500">A cada R$ X, libera Y números</div>
-                          </div>
-                        </label>
-                      </div>
-                    </div>
-
-                    {isComboMode && (
-                      <div className="bg-primary-50 p-4 rounded-lg">
-                        <h3 className="font-medium text-gray-900 mb-3">Configurações do Combo</h3>
-                        <div className="grid grid-cols-2 gap-4">
-                          <Input
-                            type="number"
-                            label="Valor base (R$)"
-                            placeholder="5"
-                            error={errors.comboBaseValue?.message}
-                            helperText="A cada R$ X investido"
-                            {...register('comboBaseValue', { valueAsNumber: true })}
-                          />
-                          <Input
-                            type="number"
-                            label="Números liberados"
-                            placeholder="20"
-                            error={errors.comboNumbersPerValue?.message}
-                            helperText="Quantos números são liberados"
-                            {...register('comboNumbersPerValue', { valueAsNumber: true })}
-                          />
-                        </div>
-                        <div className="mt-3 p-3 bg-blue-50 rounded-md">
-                          <p className="text-sm text-blue-700">
-                            <strong>Exemplo:</strong> Se configurar R$ 5 = 20 números, então:
-                            <br />• R$ 5 = 20 números
-                            <br />• R$ 10 = 40 números
-                            <br />• R$ 15 = 60 números
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
                 {/* Prizes Section */}
                 <div>
                   <h2 className="font-display font-semibold text-xl text-gray-900 mb-4 flex items-center">
@@ -375,16 +457,20 @@ export const CreateCampaignPage: React.FC = () => {
                   </h2>
                   
                   <div className="space-y-4">
-                    {fields.map((field, index) => (
+                    {prizeFields.map((field, index) => (
                       <div key={field.id} className="border border-gray-200 rounded-lg p-4">
                         <div className="flex justify-between items-center mb-3">
-                          <h4 className="font-medium text-gray-900">Prêmio {index + 1}</h4>
-                          {fields.length > 1 && (
+                          <h4 className="font-medium text-gray-900">
+                            {index === 0 ? '1º Prêmio (Principal)' : 
+                             index === 1 ? '2º Prêmio (Maior Comprador)' : 
+                             `${index + 1}º Prêmio`}
+                          </h4>
+                          {prizeFields.length > 1 && (
                             <Button
                               type="button"
                               variant="ghost"
                               size="sm"
-                              onClick={() => remove(index)}
+                              onClick={() => removePrize(index)}
                               leftIcon={<Trash2 size={16} />}
                             >
                               Remover
@@ -393,12 +479,28 @@ export const CreateCampaignPage: React.FC = () => {
                         </div>
                         
                         <div className="space-y-4">
-                          <Input
-                            label="Título do Prêmio"
-                            placeholder="Ex: iPhone 15 Pro Max"
-                            error={errors.prizes?.[index]?.title?.message}
-                            {...register(`prizes.${index}.title`)}
-                          />
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Input
+                              label="Título do Prêmio"
+                              placeholder="Ex: VW T-Cross 2022 OU R$ 115.000,00 no PIX"
+                              error={errors.prizes?.[index]?.title?.message}
+                              {...register(`prizes.${index}.title`)}
+                            />
+                            
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Tipo do Prêmio
+                              </label>
+                              <select
+                                className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                {...register(`prizes.${index}.type`)}
+                              >
+                                <option value="main">Prêmio Principal</option>
+                                <option value="biggest_buyer">Maior Comprador</option>
+                                <option value="winning_ticket">Bilhete Premiado</option>
+                              </select>
+                            </div>
+                          </div>
                           
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -433,7 +535,12 @@ export const CreateCampaignPage: React.FC = () => {
                       type="button"
                       variant="outline"
                       leftIcon={<Plus size={16} />}
-                      onClick={() => append({ title: '', description: '', imageUrl: '' })}
+                      onClick={() => appendPrize({ 
+                        title: '', 
+                        description: '', 
+                        imageUrl: '', 
+                        type: 'main' 
+                      })}
                     >
                       Adicionar Prêmio
                     </Button>
@@ -474,7 +581,7 @@ export const CreateCampaignPage: React.FC = () => {
                       </h3>
                       <div className="mt-2 text-sm text-warning-700">
                         <p>
-                          Após criar a campanha, alguns dados não poderão ser alterados, como o número de bilhetes e o valor.
+                          Após criar a campanha, alguns dados não poderão ser alterados, como o número de bilhetes, valor e bilhete premiado.
                           Verifique todas as informações antes de prosseguir.
                         </p>
                       </div>

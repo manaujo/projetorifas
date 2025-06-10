@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { X, Copy, Check } from 'lucide-react';
+import { X, Copy, Check, CreditCard } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { QRCodeGenerator } from './QRCodeGenerator';
@@ -115,7 +115,7 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b">
           <h3 className="font-display font-semibold text-lg text-gray-900">
             {step === 'form' ? 'Finalizar Compra' : 'Pagamento via PIX'}
@@ -132,46 +132,24 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
           <form onSubmit={handleSubmit(onSubmit)} className="p-6">
             <div className="mb-6">
               <h4 className="font-medium text-gray-900 mb-2">{itemTitle}</h4>
-              <div className="bg-gray-50 p-4 rounded-lg">
-                {isCombo && comboInfo ? (
-                  <div className="space-y-2">
+              <div className="bg-gradient-to-r from-primary-50 to-gold-50 p-4 rounded-xl border border-primary-200">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Bilhetes selecionados:</span>
+                    <span className="font-medium text-primary-600">{selectedNumbers.length}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Valor por bilhete:</span>
+                    <span className="font-medium">R$ {(totalPrice / selectedNumbers.length).toFixed(2).replace('.', ',')}</span>
+                  </div>
+                  <div className="border-t border-primary-200 pt-2 mt-2">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Valor investido:</span>
-                      <span className="font-medium">R$ {totalPrice.toFixed(2).replace('.', ',')}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Números liberados:</span>
-                      <span className="font-medium">{selectedNumbers.length}</span>
-                    </div>
-                    <div className="text-xs text-gray-500 mt-2">
-                      A cada R$ {comboInfo.baseValue.toFixed(2).replace('.', ',')} = {comboInfo.numbersPerValue} números
+                      <span className="font-semibold text-gray-900">Total a pagar:</span>
+                      <span className="font-bold text-xl text-primary-600">
+                        R$ {totalPrice.toFixed(2).replace('.', ',')}
+                      </span>
                     </div>
                   </div>
-                ) : (
-                  <>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm text-gray-600">Números selecionados:</span>
-                      <span className="font-medium">{selectedNumbers.length}</span>
-                    </div>
-                    <div className="flex flex-wrap gap-1 mb-3">
-                      {selectedNumbers.slice(0, 10).map(num => (
-                        <span key={num} className="bg-primary-100 text-primary-700 px-2 py-1 rounded text-xs">
-                          {num}
-                        </span>
-                      ))}
-                      {selectedNumbers.length > 10 && (
-                        <span className="text-xs text-gray-500">
-                          +{selectedNumbers.length - 10} mais
-                        </span>
-                      )}
-                    </div>
-                  </>
-                )}
-                <div className="flex justify-between items-center border-t pt-2">
-                  <span className="text-sm text-gray-600">Total:</span>
-                  <span className="font-bold text-lg text-primary-600">
-                    R$ {totalPrice.toFixed(2).replace('.', ',')}
-                  </span>
                 </div>
               </div>
             </div>
@@ -225,11 +203,7 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
           <div className="p-6">
             <div className="text-center mb-6">
               <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <img 
-                  src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/PIX_logo.svg/512px-PIX_logo.svg.png" 
-                  alt="PIX" 
-                  className="w-8 h-8"
-                />
+                <CreditCard className="w-8 h-8 text-primary-500" />
               </div>
               <h4 className="font-semibold text-lg text-gray-900 mb-2">
                 Pagamento via PIX
@@ -239,12 +213,20 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
               </p>
             </div>
 
-            <div className="bg-gray-50 p-4 rounded-lg mb-6">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium text-gray-700">Valor a pagar:</span>
-                <span className="font-bold text-xl text-primary-600">
-                  R$ {totalPrice.toFixed(2).replace('.', ',')}
-                </span>
+            <div className="bg-gradient-to-r from-primary-50 to-gold-50 p-4 rounded-xl mb-6 border border-primary-200">
+              <div className="flex justify-between items-center">
+                <div>
+                  <div className="text-sm text-gray-600">Valor a pagar:</div>
+                  <div className="text-2xl font-bold text-primary-600">
+                    R$ {totalPrice.toFixed(2).replace('.', ',')}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm text-gray-600">Bilhetes:</div>
+                  <div className="text-xl font-bold text-gray-900">
+                    {selectedNumbers.length}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -278,15 +260,15 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
               </div>
             </div>
 
-            <div className="bg-warning-50 border border-warning-200 rounded-lg p-4 mb-6">
-              <h5 className="font-medium text-warning-800 mb-2">Instruções:</h5>
-              <ol className="text-sm text-warning-700 space-y-1">
-                <li>1. Escaneie o QR Code ou copie a chave PIX</li>
-                <li>2. Abra o app do seu banco</li>
-                <li>3. Escolha a opção PIX</li>
-                <li>4. Cole a chave ou escaneie o código</li>
-                <li>5. Confirme o pagamento</li>
-                <li>6. Guarde o comprovante</li>
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+              <h5 className="font-medium text-blue-800 mb-2">📋 Instruções de Pagamento:</h5>
+              <ol className="text-sm text-blue-700 space-y-1 list-decimal list-inside">
+                <li>Abra o app do seu banco</li>
+                <li>Escolha a opção PIX</li>
+                <li>Escaneie o QR Code ou cole a chave PIX</li>
+                <li>Confirme o valor: R$ {totalPrice.toFixed(2).replace('.', ',')}</li>
+                <li>Finalize o pagamento</li>
+                <li>Guarde o comprovante</li>
               </ol>
             </div>
 
@@ -303,6 +285,7 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
                 type="button"
                 fullWidth
                 onClick={handleConfirmPayment}
+                className="bg-success-500 hover:bg-success-600"
               >
                 Confirmar Pagamento
               </Button>

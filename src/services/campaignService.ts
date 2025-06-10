@@ -1,38 +1,50 @@
 import { supabase } from '../lib/supabase';
-import { Campaign, CampaignTicket, BuyerRanking } from '../types';
+import { Campaign, CampaignTicket, BuyerRanking, CampaignPromotion } from '../types';
 
 // Mock storage for campaigns when database is not available
 let mockCampaigns: Campaign[] = [
   {
     id: 'campaign-1',
-    title: 'Mega Campanha de Natal',
-    description: 'Participe da nossa mega campanha de Natal e concorra a prêmios incríveis! Temos smartphones, notebooks, vale-compras e muito mais.',
-    coverImage: 'https://images.pexels.com/photos/1303081/pexels-photo-1303081.jpeg',
-    totalTickets: 1000,
-    ticketPrice: 15.00,
+    title: 'VW T‑CROSS TSI COMFORTLINE 2022 OU R$ 115.000,00 NO PIX',
+    description: 'Concorra a um Volkswagen T-Cross TSI Comfortline 2022 0KM ou R$ 115.000,00 no PIX! Uma oportunidade única de realizar o sonho do carro próprio ou garantir uma quantia em dinheiro.',
+    coverImage: 'https://images.pexels.com/photos/3802510/pexels-photo-3802510.jpeg',
+    totalTickets: 100000,
+    ticketPrice: 2.50,
     featured: true,
     status: 'active',
-    mode: 'combo',
-    comboRules: {
-      baseValue: 5,
-      numbersPerValue: 20,
-    },
+    mode: 'simple',
+    promotions: [
+      { id: 'promo-1', quantity: 10, price: 19.50 },
+      { id: 'promo-2', quantity: 15, price: 30.00 },
+      { id: 'promo-3', quantity: 20, price: 38.00 },
+      { id: 'promo-4', quantity: 50, price: 90.00 },
+      { id: 'promo-5', quantity: 100, price: 175.00 },
+    ],
     prizes: [
       {
         id: 'prize-1',
-        title: 'iPhone 15 Pro Max',
-        description: 'iPhone 15 Pro Max 256GB na cor Titânio Natural',
-        imageUrl: 'https://images.pexels.com/photos/699122/pexels-photo-699122.jpeg',
+        title: 'VW T-Cross TSI Comfortline 2022 OU R$ 115.000,00 no PIX',
+        description: 'Volkswagen T-Cross TSI Comfortline 2022 0KM, cor a escolher, ou R$ 115.000,00 depositados na conta do ganhador via PIX',
+        imageUrl: 'https://images.pexels.com/photos/3802510/pexels-photo-3802510.jpeg',
         position: 1,
+        type: 'main',
       },
       {
         id: 'prize-2',
-        title: 'MacBook Air M2',
-        description: 'MacBook Air M2 13" 256GB SSD 8GB RAM',
-        imageUrl: 'https://images.pexels.com/photos/205421/pexels-photo-205421.jpeg',
+        title: 'R$ 5.000,00 no PIX',
+        description: 'Prêmio para o maior comprador da campanha',
         position: 2,
+        type: 'biggest_buyer',
+      },
+      {
+        id: 'prize-3',
+        title: 'R$ 1.000,00 no PIX',
+        description: 'Prêmio para o portador do bilhete premiado',
+        position: 3,
+        type: 'winning_ticket',
       },
     ],
+    winningTicket: '003457',
     createdBy: 'admin-1',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -40,28 +52,83 @@ let mockCampaigns: Campaign[] = [
   },
   {
     id: 'campaign-2',
-    title: 'Campanha Solidária',
-    description: 'Uma campanha especial para ajudar famílias carentes. Todos os recursos arrecadados serão destinados a cestas básicas.',
-    coverImage: 'https://images.pexels.com/photos/6995247/pexels-photo-6995247.jpeg',
-    totalTickets: 500,
-    ticketPrice: 10.00,
+    title: 'iPhone 15 Pro Max 256GB OU R$ 12.000,00 NO PIX',
+    description: 'Concorra ao mais novo iPhone 15 Pro Max 256GB na cor de sua escolha ou R$ 12.000,00 no PIX! Tecnologia de ponta na palma da sua mão.',
+    coverImage: 'https://images.pexels.com/photos/699122/pexels-photo-699122.jpeg',
+    totalTickets: 10000,
+    ticketPrice: 5.00,
     featured: false,
     status: 'active',
     mode: 'simple',
+    promotions: [
+      { id: 'promo-6', quantity: 5, price: 20.00 },
+      { id: 'promo-7', quantity: 10, price: 35.00 },
+      { id: 'promo-8', quantity: 20, price: 65.00 },
+      { id: 'promo-9', quantity: 50, price: 150.00 },
+    ],
     prizes: [
       {
-        id: 'prize-3',
-        title: 'Cestas Básicas',
-        description: '100 cestas básicas para famílias carentes',
+        id: 'prize-4',
+        title: 'iPhone 15 Pro Max 256GB OU R$ 12.000,00 no PIX',
+        description: 'iPhone 15 Pro Max 256GB na cor de sua escolha ou R$ 12.000,00 depositados via PIX',
+        imageUrl: 'https://images.pexels.com/photos/699122/pexels-photo-699122.jpeg',
         position: 1,
+        type: 'main',
+      },
+      {
+        id: 'prize-5',
+        title: 'R$ 1.000,00 no PIX',
+        description: 'Prêmio para o maior comprador da campanha',
+        position: 2,
+        type: 'biggest_buyer',
+      },
+      {
+        id: 'prize-6',
+        title: 'R$ 500,00 no PIX',
+        description: 'Prêmio para o portador do bilhete premiado',
+        position: 3,
+        type: 'winning_ticket',
       },
     ],
+    winningTicket: '007890',
     createdBy: 'admin-1',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    pixKey: 'solidaria@pix.com',
+    pixKey: 'iphone@pix.com',
   },
 ];
+
+// Generate random ticket numbers for campaigns
+const generateRandomTickets = (campaignId: string, totalTickets: number): CampaignTicket[] => {
+  const tickets: CampaignTicket[] = [];
+  const usedNumbers = new Set<string>();
+  
+  for (let i = 0; i < totalTickets; i++) {
+    let ticketNumber: string;
+    do {
+      // Generate random 6-digit number
+      ticketNumber = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+    } while (usedNumbers.has(ticketNumber));
+    
+    usedNumbers.add(ticketNumber);
+    
+    tickets.push({
+      id: `ticket-${campaignId}-${i + 1}`,
+      campaignId,
+      number: ticketNumber,
+      isPrize: false,
+      status: 'available',
+    });
+  }
+  
+  return tickets;
+};
+
+// Initialize mock tickets for campaigns
+let mockTickets: { [campaignId: string]: CampaignTicket[] } = {};
+mockCampaigns.forEach(campaign => {
+  mockTickets[campaign.id] = generateRandomTickets(campaign.id, Math.min(campaign.totalTickets, 1000)); // Limit for demo
+});
 
 // Initialize database schema if tables don't exist
 const initializeDatabase = async () => {
@@ -111,6 +178,8 @@ export const createCampaign = async (campaignData: Omit<Campaign, 'id' | 'create
       mode: campaignData.mode,
       comboRules: campaignData.comboRules,
       prizes: campaignData.prizes,
+      promotions: campaignData.promotions || [],
+      winningTicket: campaignData.winningTicket,
       createdBy: campaignData.createdBy,
       pixKey: campaignData.pixKey,
       createdAt: new Date().toISOString(),
@@ -118,6 +187,10 @@ export const createCampaign = async (campaignData: Omit<Campaign, 'id' | 'create
     };
 
     mockCampaigns.push(mockCampaign);
+    
+    // Generate tickets for the new campaign
+    mockTickets[mockCampaign.id] = generateRandomTickets(mockCampaign.id, Math.min(mockCampaign.totalTickets, 1000));
+    
     console.log('Campanha mock criada:', mockCampaign); // Debug
     return mockCampaign;
   }
@@ -160,6 +233,8 @@ export const createCampaign = async (campaignData: Omit<Campaign, 'id' | 'create
       mode: data.mode,
       comboRules: data.combo_rules,
       prizes: campaignData.prizes,
+      promotions: campaignData.promotions || [],
+      winningTicket: campaignData.winningTicket,
       createdBy: data.created_by,
       pixKey: data.pix_key,
       createdAt: data.created_at,
@@ -180,6 +255,8 @@ export const createCampaign = async (campaignData: Omit<Campaign, 'id' | 'create
       mode: campaignData.mode,
       comboRules: campaignData.comboRules,
       prizes: campaignData.prizes,
+      promotions: campaignData.promotions || [],
+      winningTicket: campaignData.winningTicket,
       createdBy: campaignData.createdBy,
       pixKey: campaignData.pixKey,
       createdAt: new Date().toISOString(),
@@ -187,6 +264,7 @@ export const createCampaign = async (campaignData: Omit<Campaign, 'id' | 'create
     };
 
     mockCampaigns.push(mockCampaign);
+    mockTickets[mockCampaign.id] = generateRandomTickets(mockCampaign.id, Math.min(mockCampaign.totalTickets, 1000));
     return mockCampaign;
   }
 };
@@ -218,6 +296,7 @@ export const getCampaigns = async (): Promise<Campaign[]> => {
       mode: campaign.mode,
       comboRules: campaign.combo_rules,
       prizes: [], // Would need to fetch from a separate prizes table
+      promotions: [], // Would need to fetch from a separate promotions table
       createdBy: campaign.created_by,
       pixKey: campaign.pix_key,
       createdAt: campaign.created_at,
@@ -257,6 +336,7 @@ export const getCampaignById = async (id: string): Promise<Campaign | null> => {
       mode: data.mode,
       comboRules: data.combo_rules,
       prizes: [], // Would need to fetch from a separate prizes table
+      promotions: [], // Would need to fetch from a separate promotions table
       createdBy: data.created_by,
       pixKey: data.pix_key,
       createdAt: data.created_at,
@@ -272,17 +352,7 @@ export const getCampaignTickets = async (campaignId: string): Promise<CampaignTi
   const dbAvailable = await checkDatabase();
   
   if (!dbAvailable) {
-    // Return mock tickets for demo campaigns
-    const campaign = mockCampaigns.find(c => c.id === campaignId);
-    if (!campaign) return [];
-    
-    return Array.from({ length: campaign.totalTickets }, (_, i) => ({
-      id: `ticket-${campaignId}-${i + 1}`,
-      campaignId,
-      number: i + 1,
-      isPrize: false,
-      status: 'available' as const,
-    }));
+    return mockTickets[campaignId] || [];
   }
 
   try {
@@ -306,17 +376,7 @@ export const getCampaignTickets = async (campaignId: string): Promise<CampaignTi
     }));
   } catch (error) {
     console.error('Database operation failed, using mock data:', error);
-    // Return mock tickets for demo campaigns
-    const campaign = mockCampaigns.find(c => c.id === campaignId);
-    if (!campaign) return [];
-    
-    return Array.from({ length: campaign.totalTickets }, (_, i) => ({
-      id: `ticket-${campaignId}-${i + 1}`,
-      campaignId,
-      number: i + 1,
-      isPrize: false,
-      status: 'available' as const,
-    }));
+    return mockTickets[campaignId] || [];
   }
 };
 
@@ -324,7 +384,32 @@ export const getBuyerRanking = async (campaignId: string): Promise<BuyerRanking[
   const dbAvailable = await checkDatabase();
   
   if (!dbAvailable) {
-    return [];
+    // Generate mock ranking data
+    const tickets = mockTickets[campaignId] || [];
+    const soldTickets = tickets.filter(t => t.status === 'sold');
+    
+    const buyerStats: { [userId: string]: { name: string; count: number } } = {};
+    
+    soldTickets.forEach(ticket => {
+      if (ticket.userId) {
+        if (!buyerStats[ticket.userId]) {
+          buyerStats[ticket.userId] = {
+            name: `Usuário ${ticket.userId.slice(-4)}`,
+            count: 0
+          };
+        }
+        buyerStats[ticket.userId].count++;
+      }
+    });
+    
+    return Object.entries(buyerStats)
+      .map(([userId, stats]) => ({
+        userId,
+        userName: stats.name,
+        ticketsBought: stats.count,
+        participationPercentage: Math.round((stats.count / soldTickets.length) * 100)
+      }))
+      .sort((a, b) => b.ticketsBought - a.ticketsBought);
   }
 
   try {
@@ -356,7 +441,18 @@ export const purchaseTickets = async (
   const dbAvailable = await checkDatabase();
   
   if (!dbAvailable) {
-    // For mock campaigns, just simulate the purchase
+    // For mock campaigns, update ticket status
+    const tickets = mockTickets[campaignId] || [];
+    const ticketNumberStrings = ticketNumbers.map(n => n.toString().padStart(6, '0'));
+    
+    tickets.forEach(ticket => {
+      if (ticketNumberStrings.includes(ticket.number) && ticket.status === 'available') {
+        ticket.status = 'sold';
+        ticket.userId = userId;
+        ticket.purchaseDate = new Date().toISOString();
+      }
+    });
+    
     console.log(`Mock purchase: Campaign ${campaignId}, User ${userId}, Tickets ${ticketNumbers.join(', ')}`);
     return;
   }

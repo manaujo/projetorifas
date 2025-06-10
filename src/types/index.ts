@@ -72,6 +72,8 @@ export interface Campaign {
     get?: number;
   };
   prizes: Prize[];
+  promotions: CampaignPromotion[];
+  winningTicket?: string;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
@@ -84,12 +86,20 @@ export interface Prize {
   description: string;
   imageUrl?: string;
   position: number;
+  type: 'main' | 'biggest_buyer' | 'winning_ticket';
+}
+
+export interface CampaignPromotion {
+  id: string;
+  quantity: number;
+  price: number;
+  discount?: number;
 }
 
 export interface CampaignTicket {
   id: string;
   campaignId: string;
-  number: number;
+  number: string; // Changed to string for random numbers like "003457"
   isPrize: boolean;
   prizeDescription?: string;
   status: 'available' | 'reserved' | 'sold';
@@ -123,4 +133,20 @@ export interface Purchase {
   pixKey: string;
   status: 'pending' | 'completed' | 'failed';
   createdAt: string;
+}
+
+export interface CampaignPurchase {
+  id: string;
+  campaignId: string;
+  buyerId: string;
+  quantity: number;
+  totalAmount: number;
+  ticketNumbers: string[];
+  paymentStatus: 'pending' | 'completed' | 'failed';
+  createdAt: string;
+  buyerInfo: {
+    name: string;
+    cpf: string;
+    phone: string;
+  };
 }
