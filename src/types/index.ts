@@ -65,8 +65,11 @@ export interface Campaign {
   status: 'draft' | 'active' | 'paused' | 'completed';
   mode: 'simple' | 'combo';
   comboRules?: {
-    buy: number;
-    get: number;
+    baseValue?: number;
+    numbersPerValue?: number;
+    // Legacy support
+    buy?: number;
+    get?: number;
   };
   prizes: Prize[];
   createdBy: string;

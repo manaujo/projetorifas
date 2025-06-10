@@ -5,10 +5,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import { Camera, DollarSign, Hash, AlertTriangle, Save, Eye, Megaphone, Gift, Plus, Trash2 } from 'lucide-react';
+import { Camera, DollarSign, Hash, AlertTriangle, Save, Eye, Megaphone, Gift, Plus, Trash2, CreditCard } from 'lucide-react';
 import { Layout } from '../components/layout/Layout';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
+import { ImageUpload } from '../components/ui/ImageUpload';
 import { useAuth } from '../contexts/AuthContext';
 import { hasActivePlan } from '../services/authService';
 import { createCampaign } from '../services/campaignService';
@@ -16,7 +17,7 @@ import { createCampaign } from '../services/campaignService';
 const prizeSchema = z.object({
   title: z.string().min(3, 'Título do prêmio deve ter pelo menos 3 caracteres'),
   description: z.string().min(10, 'Descrição deve ter pelo menos 10 caracteres'),
-  imageUrl: z.string().url('URL da imagem inválida').optional(),
+  imageUrl: z.string().optional(),
 });
 
 const createCampaignSchema = z.object({
@@ -32,11 +33,14 @@ const createCampaignSchema = z.object({
   totalTickets: z.number()
     .min(10, 'Mínimo de 10 bilhetes')
     .max(100000, 'Máximo de 100.000 bilhetes'),
-  coverImage: z.string().url('URL da imagem inválida'),
+  coverImage: z.string().min(1, 'Imagem é obrigatória'),
+  pixKey: z.string()
+    .min(1, 'Chave PIX é obrigatória')
+    .max(77, 'Chave PIX inválida'),
   featured: z.boolean().default(false),
   mode: z.enum(['simple', 'combo']).default('simple'),
-  comboBuy: z.number().optional(),
-  comboGet: z.number().optional(),
+  comboBaseValue: z.number().optional(),
+  comboNumbersPerValue: z.number().optional(),
   prizes: z.array(prizeSchema).min(1, 'Adicione pelo menos um prêmio'),
 });
 
@@ -53,6 +57,7 @@ export const CreateCampaignPage: React.FC = () => {
     handleSubmit,
     watch,
     control,
+    setValue,
     formState: { errors },
   } = useForm<CreateCampaignFormData>({
     resolver: zodResolver(createCampaignSchema),
@@ -60,6 +65,7 @@ export const CreateCampaignPage: React.FC = () => {
     defaultValues: {
       featured: false,
       mode: 'simple',
+      coverImage: '',
       prizes: [{ title: '', description: '', imageUrl: '' }],
     }
   });
@@ -114,9 +120,9 @@ export const CreateCampaignPage: React.FC = () => {
         featured: data.featured,
         status: 'active' as const,
         mode: data.mode,
-        comboRules: data.mode === 'combo' && data.comboBuy && data.comboGet ? {
-          buy: data.comboBuy,
-          get: data.comboGet,
+        comboRules: data.mode === 'combo' && data.comboBaseValue && data.comboNumbersPerValue ? {
+          baseValue: data.comboBaseValue,
+          numbersPerValue: data.comboNumbersPerValue,
         } : undefined,
         prizes: data.prizes.map((prize, index) => ({
           id: `prize-${index + 1}`,
@@ -126,6 +132,7 @@ export const CreateCampaignPage: React.FC = () => {
           position: index + 1,
         })),
         createdBy: user.id,
+        pixKey: data.pixKey,
       };
 
       const newCampaign = await createCampaign(campaignData);
@@ -153,9 +160,9 @@ export const CreateCampaignPage: React.FC = () => {
         featured: formData.featured,
         status: 'draft' as const,
         mode: formData.mode,
-        comboRules: formData.mode === 'combo' && formData.comboBuy && formData.comboGet ? {
-          buy: formData.comboBuy,
-          get: formData.comboGet,
+        comboRules: formData.mode === 'combo' && formData.comboBaseValue && formData.comboNumbersPerValue ? {
+          baseValue: formData.comboBaseValue,
+          numbersPerValue: formData.comboNumbersPerValue,
         } : undefined,
         prizes: formData.prizes.map((prize, index) => ({
           id: `prize-${index + 1}`,
@@ -165,6 +172,7 @@ export const CreateCampaignPage: React.FC = () => {
           position: index + 1,
         })),
         createdBy: user.id,
+        pixKey: formData.pixKey,
       };
 
       const newCampaign = await createCampaign(campaignData);
@@ -235,13 +243,29 @@ export const CreateCampaignPage: React.FC = () => {
                       )}
                     </div>
 
-                    <Input
-                      label="URL da Imagem de Capa"
-                      placeholder="https://exemplo.com/imagem.jpg"
+                    <ImageUpload
+                      label="Imagem de Capa"
+                      onImageUploaded={(url) => setValue('coverImage', url)}
+                      currentImage={formValues.coverImage}
                       error={errors.coverImage?.message}
-                      {...register('coverImage')}
                     />
                   </div>
+                </div>
+
+                {/* Payment Information */}
+                <div>
+                  <h2 className="font-display font-semibold text-xl text-gray-900 mb-4 flex items-center">
+                    <CreditCard className="mr-2" size={20} />
+                    Informações de Pagamento
+                  </h2>
+                  
+                  <Input
+                    label="Chave PIX"
+                    placeholder="Ex: seu@email.com, 11999999999 ou chave aleatória"
+                    error={errors.pixKey?.message}
+                    helperText="Esta chave será exibida aos compradores para pagamento"
+                    {...register('pixKey')}
+                  />
                 </div>
 
                 {/* Campaign Settings */}
@@ -295,8 +319,8 @@ export const CreateCampaignPage: React.FC = () => {
                             {...register('mode')}
                           />
                           <div>
-                            <div className="font-medium">Combo</div>
-                            <div className="text-sm text-gray-500">Compre X e ganhe Y bilhetes</div>
+                            <div className="font-medium">Combo por Valor</div>
+                            <div className="text-sm text-gray-500">A cada R$ X, libera Y números</div>
                           </div>
                         </label>
                       </div>
@@ -308,18 +332,28 @@ export const CreateCampaignPage: React.FC = () => {
                         <div className="grid grid-cols-2 gap-4">
                           <Input
                             type="number"
-                            label="Compre (quantidade)"
+                            label="Valor base (R$)"
                             placeholder="5"
-                            error={errors.comboBuy?.message}
-                            {...register('comboBuy', { valueAsNumber: true })}
+                            error={errors.comboBaseValue?.message}
+                            helperText="A cada R$ X investido"
+                            {...register('comboBaseValue', { valueAsNumber: true })}
                           />
                           <Input
                             type="number"
-                            label="Ganhe (quantidade)"
-                            placeholder="1"
-                            error={errors.comboGet?.message}
-                            {...register('comboGet', { valueAsNumber: true })}
+                            label="Números liberados"
+                            placeholder="20"
+                            error={errors.comboNumbersPerValue?.message}
+                            helperText="Quantos números são liberados"
+                            {...register('comboNumbersPerValue', { valueAsNumber: true })}
                           />
+                        </div>
+                        <div className="mt-3 p-3 bg-blue-50 rounded-md">
+                          <p className="text-sm text-blue-700">
+                            <strong>Exemplo:</strong> Se configurar R$ 5 = 20 números, então:
+                            <br />• R$ 5 = 20 números
+                            <br />• R$ 10 = 40 números
+                            <br />• R$ 15 = 60 números
+                          </p>
                         </div>
                       </div>
                     )}

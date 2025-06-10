@@ -5,10 +5,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import { Camera, Calendar, DollarSign, Hash, AlertTriangle, Save, Eye } from 'lucide-react';
+import { Camera, Calendar, DollarSign, Hash, AlertTriangle, Save, Eye, CreditCard } from 'lucide-react';
 import { Layout } from '../components/layout/Layout';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
+import { ImageUpload } from '../components/ui/ImageUpload';
 import { useAuth } from '../contexts/AuthContext';
 import { createRaffle } from '../services/raffleService';
 
@@ -30,7 +31,10 @@ const createRaffleSchema = z.object({
       message: 'A data do sorteio deve ser no futuro',
     }),
   isCharity: z.boolean().default(false),
-  imageUrl: z.string().url('URL da imagem inválida'),
+  imageUrl: z.string().min(1, 'Imagem é obrigatória'),
+  pixKey: z.string()
+    .min(1, 'Chave PIX é obrigatória')
+    .max(77, 'Chave PIX inválida'),
   status: z.enum(['draft', 'active']).default('draft'),
 });
 
@@ -46,6 +50,7 @@ export const CreateRafflePage: React.FC = () => {
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<CreateRaffleFormData>({
     resolver: zodResolver(createRaffleSchema),
@@ -53,6 +58,7 @@ export const CreateRafflePage: React.FC = () => {
     defaultValues: {
       status: 'draft',
       isCharity: false,
+      imageUrl: '',
     }
   });
 
@@ -121,7 +127,8 @@ export const CreateRafflePage: React.FC = () => {
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                 {/* Basic Information */}
                 <div>
-                  <h2 className="font-display font-semibold text-xl text-gray-900 mb-4">
+                  <h2 className="font-display font-semibold text-xl text-gray-900 mb-4 flex items-center">
+                    <Camera className="mr-2" size={20} />
                     Informações Básicas
                   </h2>
                   
@@ -152,18 +159,19 @@ export const CreateRafflePage: React.FC = () => {
                       )}
                     </div>
 
-                    <Input
-                      label="URL da Imagem"
-                      placeholder="https://exemplo.com/imagem.jpg"
+                    <ImageUpload
+                      label="Imagem da Rifa"
+                      onImageUploaded={(url) => setValue('imageUrl', url)}
+                      currentImage={formValues.imageUrl}
                       error={errors.imageUrl?.message}
-                      {...register('imageUrl')}
                     />
                   </div>
                 </div>
 
                 {/* Pricing and Numbers */}
                 <div>
-                  <h2 className="font-display font-semibold text-xl text-gray-900 mb-4">
+                  <h2 className="font-display font-semibold text-xl text-gray-900 mb-4 flex items-center">
+                    <DollarSign className="mr-2" size={20} />
                     Preços e Números
                   </h2>
                   
@@ -186,9 +194,26 @@ export const CreateRafflePage: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Payment Information */}
+                <div>
+                  <h2 className="font-display font-semibold text-xl text-gray-900 mb-4 flex items-center">
+                    <CreditCard className="mr-2" size={20} />
+                    Informações de Pagamento
+                  </h2>
+                  
+                  <Input
+                    label="Chave PIX"
+                    placeholder="Ex: seu@email.com, 11999999999 ou chave aleatória"
+                    error={errors.pixKey?.message}
+                    helperText="Esta chave será exibida aos compradores para pagamento"
+                    {...register('pixKey')}
+                  />
+                </div>
+
                 {/* Schedule */}
                 <div>
-                  <h2 className="font-display font-semibold text-xl text-gray-900 mb-4">
+                  <h2 className="font-display font-semibold text-xl text-gray-900 mb-4 flex items-center">
+                    <Calendar className="mr-2" size={20} />
                     Agendamento
                   </h2>
                   

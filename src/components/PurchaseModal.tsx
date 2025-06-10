@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { X, Copy, Check } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
+import { QRCodeGenerator } from './QRCodeGenerator';
 import { toast } from 'react-hot-toast';
 
 const purchaseSchema = z.object({
@@ -28,6 +29,11 @@ interface PurchaseModalProps {
   pixKey: string;
   itemTitle: string;
   onConfirmPurchase: (buyerInfo: { name: string; cpf: string; phone: string }) => void;
+  isCombo?: boolean;
+  comboInfo?: {
+    baseValue: number;
+    numbersPerValue: number;
+  };
 }
 
 export const PurchaseModal: React.FC<PurchaseModalProps> = ({
@@ -38,9 +44,12 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
   pixKey,
   itemTitle,
   onConfirmPurchase,
+  isCombo = false,
+  comboInfo,
 }) => {
   const [step, setStep] = useState<'form' | 'payment'>('form');
   const [copied, setCopied] = useState(false);
+  const [buyerData, setBuyerData] = useState<PurchaseFormData | null>(null);
 
   const {
     register,
@@ -70,6 +79,7 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
   };
 
   const onSubmit = (data: PurchaseFormData) => {
+    setBuyerData(data);
     setStep('payment');
   };
 
@@ -85,24 +95,23 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
   };
 
   const handleConfirmPayment = () => {
-    const formData = new FormData(document.querySelector('form') as HTMLFormElement);
-    const buyerInfo = {
-      name: formData.get('name') as string,
-      cpf: formData.get('cpf') as string,
-      phone: formData.get('phone') as string,
-    };
-    
-    onConfirmPurchase(buyerInfo);
-    handleClose();
+    if (buyerData) {
+      onConfirmPurchase(buyerData);
+      handleClose();
+    }
   };
 
   const handleClose = () => {
     setStep('form');
+    setBuyerData(null);
     reset();
     onClose();
   };
 
   if (!isOpen) return null;
+
+  // Generate PIX payload for QR Code
+  const pixPayload = `00020126580014br.gov.bcb.pix0136${pixKey}52040000530398654${totalPrice.toFixed(2).padStart(10, '0')}5802BR5925${itemTitle.substring(0, 25)}6009SAO PAULO62070503***6304`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
@@ -124,23 +133,41 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
             <div className="mb-6">
               <h4 className="font-medium text-gray-900 mb-2">{itemTitle}</h4>
               <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-gray-600">Números selecionados:</span>
-                  <span className="font-medium">{selectedNumbers.length}</span>
-                </div>
-                <div className="flex flex-wrap gap-1 mb-3">
-                  {selectedNumbers.slice(0, 10).map(num => (
-                    <span key={num} className="bg-primary-100 text-primary-700 px-2 py-1 rounded text-xs">
-                      {num}
-                    </span>
-                  ))}
-                  {selectedNumbers.length > 10 && (
-                    <span className="text-xs text-gray-500">
-                      +{selectedNumbers.length - 10} mais
-                    </span>
-                  )}
-                </div>
-                <div className="flex justify-between items-center">
+                {isCombo && comboInfo ? (
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Valor investido:</span>
+                      <span className="font-medium">R$ {totalPrice.toFixed(2).replace('.', ',')}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Números liberados:</span>
+                      <span className="font-medium">{selectedNumbers.length}</span>
+                    </div>
+                    <div className="text-xs text-gray-500 mt-2">
+                      A cada R$ {comboInfo.baseValue.toFixed(2).replace('.', ',')} = {comboInfo.numbersPerValue} números
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm text-gray-600">Números selecionados:</span>
+                      <span className="font-medium">{selectedNumbers.length}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1 mb-3">
+                      {selectedNumbers.slice(0, 10).map(num => (
+                        <span key={num} className="bg-primary-100 text-primary-700 px-2 py-1 rounded text-xs">
+                          {num}
+                        </span>
+                      ))}
+                      {selectedNumbers.length > 10 && (
+                        <span className="text-xs text-gray-500">
+                          +{selectedNumbers.length - 10} mais
+                        </span>
+                      )}
+                    </div>
+                  </>
+                )}
+                <div className="flex justify-between items-center border-t pt-2">
                   <span className="text-sm text-gray-600">Total:</span>
                   <span className="font-bold text-lg text-primary-600">
                     R$ {totalPrice.toFixed(2).replace('.', ',')}
@@ -208,7 +235,7 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
                 Pagamento via PIX
               </h4>
               <p className="text-gray-600 text-sm">
-                Copie a chave PIX abaixo e faça o pagamento no seu banco
+                Escaneie o QR Code ou copie a chave PIX para fazer o pagamento
               </p>
             </div>
 
@@ -221,9 +248,18 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
               </div>
             </div>
 
+            {/* QR Code */}
+            <div className="mb-6">
+              <QRCodeGenerator value={pixPayload} size={200} className="mb-4" />
+              <p className="text-center text-sm text-gray-600">
+                Escaneie o QR Code com o app do seu banco
+              </p>
+            </div>
+
+            {/* PIX Key */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Chave PIX:
+                Ou copie a chave PIX:
               </label>
               <div className="flex">
                 <input
@@ -245,11 +281,12 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
             <div className="bg-warning-50 border border-warning-200 rounded-lg p-4 mb-6">
               <h5 className="font-medium text-warning-800 mb-2">Instruções:</h5>
               <ol className="text-sm text-warning-700 space-y-1">
-                <li>1. Copie a chave PIX acima</li>
+                <li>1. Escaneie o QR Code ou copie a chave PIX</li>
                 <li>2. Abra o app do seu banco</li>
                 <li>3. Escolha a opção PIX</li>
-                <li>4. Cole a chave e faça o pagamento</li>
-                <li>5. Guarde o comprovante</li>
+                <li>4. Cole a chave ou escaneie o código</li>
+                <li>5. Confirme o pagamento</li>
+                <li>6. Guarde o comprovante</li>
               </ol>
             </div>
 
