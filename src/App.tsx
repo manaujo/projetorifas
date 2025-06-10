@@ -8,6 +8,7 @@ import { LoginPage } from './pages/LoginPage';
 import { RafflePage } from './pages/RafflePage';
 import { DashboardPage } from './pages/DashboardPage';
 import { CreateRafflePage } from './pages/CreateRafflePage';
+import { CreateCampaignPage } from './pages/CreateCampaignPage';
 import { RafflesPage } from './pages/RafflesPage';
 import { CampaignsPage } from './pages/CampaignsPage';
 import { CampaignPage } from './pages/CampaignPage';
@@ -26,6 +27,25 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   
   if (!isAuthenticated) {
     return <Navigate to="/login" />;
+  }
+  
+  return <>{children}</>;
+};
+
+// Admin route wrapper
+const AdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, user, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return <div className="flex items-center justify-center min-h-screen">Carregando...</div>;
+  }
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" />;
+  }
+  
+  if (user?.role !== 'admin') {
+    return <Navigate to="/dashboard" />;
   }
   
   return <>{children}</>;
@@ -63,6 +83,16 @@ function App() {
               <ProtectedRoute>
                 <DashboardPage />
               </ProtectedRoute>
+            } 
+          />
+          
+          {/* Admin routes */}
+          <Route 
+            path="/criar-campanha" 
+            element={
+              <AdminRoute>
+                <CreateCampaignPage />
+              </AdminRoute>
             } 
           />
           

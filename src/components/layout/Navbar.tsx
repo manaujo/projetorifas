@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Ticket, User, LogOut, Menu, X, Home, Gift, PlusCircle } from 'lucide-react';
+import { Ticket, User, LogOut, Menu, X, Home, Gift, PlusCircle, Megaphone } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../ui/Button';
 import { Logo } from '../Logo';
@@ -43,6 +43,16 @@ export const Navbar: React.FC = () => {
               }`}
             >
               Rifas
+            </Link>
+            <Link
+              to="/campanhas"
+              className={`px-3 py-2 rounded-md text-sm font-medium ${
+                location.pathname === '/campanhas' 
+                  ? 'text-primary-600 bg-primary-50' 
+                  : 'text-gray-700 hover:text-primary-600 hover:bg-gray-100'
+              }`}
+            >
+              Campanhas
             </Link>
             <Link
               to="/sobre"
@@ -88,7 +98,19 @@ export const Navbar: React.FC = () => {
           
           <div className="hidden md:flex items-center space-x-4">
             {isAuthenticated ? (
-              <div className="flex items-center">
+              <div className="flex items-center space-x-2">
+                {user?.role === 'admin' && (
+                  <Link to="/criar-campanha">
+                    <Button variant="ghost\" leftIcon={<Megaphone size={16} />} className="mr-2">
+                      Nova Campanha
+                    </Button>
+                  </Link>
+                )}
+                <Link to="/criar-rifa">
+                  <Button variant="ghost" leftIcon={<PlusCircle size={16} />} className="mr-2">
+                    Nova Rifa
+                  </Button>
+                </Link>
                 <Link to="/dashboard">
                   <Button variant="ghost" leftIcon={<User size={16} />} className="mr-2">
                     Minha Conta
@@ -151,6 +173,16 @@ export const Navbar: React.FC = () => {
                 </div>
               </Link>
               <Link
+                to="/campanhas"
+                className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-100"
+                onClick={closeMenu}
+              >
+                <div className="flex items-center">
+                  <Megaphone size={18} className="mr-2" />
+                  Campanhas
+                </div>
+              </Link>
+              <Link
                 to="/sobre"
                 className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-100"
                 onClick={closeMenu}
@@ -195,6 +227,28 @@ export const Navbar: React.FC = () => {
             <div className="mt-3 px-2 space-y-1">
               {isAuthenticated ? (
                 <>
+                  {user?.role === 'admin' && (
+                    <Link 
+                      to="/criar-campanha" 
+                      className="block px-3 py-2 rounded-md text-base font-medium text-primary-600 hover:bg-primary-50"
+                      onClick={closeMenu}
+                    >
+                      <div className="flex items-center">
+                        <Megaphone size={18} className="mr-2" />
+                        Nova Campanha
+                      </div>
+                    </Link>
+                  )}
+                  <Link 
+                    to="/criar-rifa" 
+                    className="block px-3 py-2 rounded-md text-base font-medium text-primary-600 hover:bg-primary-50"
+                    onClick={closeMenu}
+                  >
+                    <div className="flex items-center">
+                      <PlusCircle size={18} className="mr-2" />
+                      Nova Rifa
+                    </div>
+                  </Link>
                   <Link 
                     to="/dashboard" 
                     className="block px-3 py-2 rounded-md text-base font-medium text-primary-600 hover:bg-primary-50"

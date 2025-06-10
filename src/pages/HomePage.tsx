@@ -1,38 +1,48 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Ticket, Users, Zap, Shield, ArrowRight, Search } from "lucide-react";
+import { Ticket, Users, Zap, Shield, ArrowRight, Search, Megaphone } from "lucide-react";
 import { Layout } from "../components/layout/Layout";
 import { Button } from "../components/ui/Button";
 import { RaffleCard } from "../components/RaffleCard";
+import { CampaignCard } from "../components/campaigns/CampaignCard";
 import { PricingSection } from "../components/pricing/PricingSection";
 import { AboutSection } from "../components/about/AboutSection";
-import { Raffle } from "../types";
+import { Raffle, Campaign } from "../types";
 import { getRaffles } from "../services/raffleService";
+import { getCampaigns } from "../services/campaignService";
 import { useAuth } from "../contexts/AuthContext";
 import Img from "../assets/c0b098c0-29eb-447e-b616-1fdf7002095e.png";
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [activeRaffles, setActiveRaffles] = useState<Raffle[]>([]);
+  const [activeCampaigns, setActiveCampaigns] = useState<Campaign[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchRaffles = async () => {
+    const fetchData = async () => {
       try {
-        const raffles = await getRaffles();
+        const [raffles, campaigns] = await Promise.all([
+          getRaffles(),
+          getCampaigns(),
+        ]);
+        
         setActiveRaffles(
-          raffles.filter((raffle) => raffle.status === "active")
+          raffles.filter((raffle) => raffle.status === "active").slice(0, 3)
+        );
+        setActiveCampaigns(
+          campaigns.filter((campaign) => campaign.status === "active").slice(0, 3)
         );
       } catch (error) {
-        console.error("Failed to fetch raffles", error);
+        console.error("Failed to fetch data", error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchRaffles();
+    fetchData();
   }, []);
 
   const handleCreateRaffle = () => {
@@ -41,6 +51,18 @@ export const HomePage: React.FC = () => {
       return;
     }
     navigate('/criar-rifa');
+  };
+
+  const handleCreateCampaign = () => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    if (user?.role !== 'admin') {
+      navigate('/dashboard');
+      return;
+    }
+    navigate('/criar-campanha');
   };
 
   const scrollToSection = (id: string) => {
@@ -66,8 +88,8 @@ export const HomePage: React.FC = () => {
                 Transformando sua sorte em grandes conquistas
               </h1>
               <p className="text-lg mb-6 text-primary-100 max-w-xl">
-                Participe de rifas online de forma segura e confiável. Ganhe
-                prêmios incríveis ou crie sua própria campanha.
+                Participe de rifas e campanhas online de forma segura e confiável. 
+                Ganhe prêmios incríveis ou crie sua própria campanha.
               </p>
               <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
                 <Button
@@ -114,7 +136,7 @@ export const HomePage: React.FC = () => {
               Por que escolher a Rifativa?
             </h2>
             <p className="text-gray-600 max-w-2xl mx-auto">
-              A melhor plataforma para criação e participação em rifas online
+              A melhor plataforma para criação e participação em rifas e campanhas online
               com segurança, transparência e facilidade.
             </p>
           </div>
@@ -214,7 +236,7 @@ export const HomePage: React.FC = () => {
                 Rifas em Destaque
               </h2>
               <p className="text-gray-600">
-                Confira as campanhas mais populares do momento
+                Confira as rifas mais populares do momento
               </p>
             </div>
             <div className="mt-4 md:mt-0">
@@ -261,6 +283,62 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
 
+      {/* Active Campaigns Section */}
+      <section className="py-16 bg-white">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col md:flex-row justify-between items-center mb-8">
+            <div>
+              <h2 className="font-display font-bold text-2xl md:text-3xl text-gray-900 mb-2">
+                Campanhas Especiais
+              </h2>
+              <p className="text-gray-600">
+                Participe das nossas campanhas promocionais exclusivas
+              </p>
+            </div>
+            <div className="mt-4 md:mt-0">
+              <Button
+                variant="outline"
+                rightIcon={<ArrowRight size={16} />}
+                onClick={() => navigate('/campanhas')}
+              >
+                Ver Todas as Campanhas
+              </Button>
+            </div>
+          </div>
+
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-pulse">
+              {[1, 2, 3].map((item) => (
+                <div
+                  key={item}
+                  className="bg-white rounded-lg overflow-hidden shadow-card"
+                >
+                  <div className="h-48 bg-gray-300"></div>
+                  <div className="p-4">
+                    <div className="h-6 bg-gray-300 rounded mb-3"></div>
+                    <div className="h-16 bg-gray-200 rounded mb-3"></div>
+                    <div className="h-10 bg-gray-300 rounded"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {activeCampaigns.map((campaign) => (
+                <motion.div
+                  key={campaign.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <CampaignCard campaign={campaign} />
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="py-16 bg-primary-500 text-white">
         <div className="container mx-auto px-4 text-center">
@@ -268,13 +346,24 @@ export const HomePage: React.FC = () => {
             Pronto para criar sua própria campanha?
           </h2>
           <p className="text-primary-100 mb-8 max-w-2xl mx-auto">
-            Crie uma rifa para seu produto ou para uma causa beneficente. É
-            rápido, fácil e seguro!
+            Crie uma rifa para seu produto ou uma campanha promocional especial. 
+            É rápido, fácil e seguro!
           </p>
           <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 justify-center">
             <Button size="lg" variant="secondary" onClick={handleCreateRaffle}>
               Criar Minha Rifa
             </Button>
+            {user?.role === 'admin' && (
+              <Button 
+                size="lg" 
+                variant="outline"
+                className="border-white text-white hover:bg-white hover:text-primary-500"
+                leftIcon={<Megaphone size={16} />}
+                onClick={handleCreateCampaign}
+              >
+                Criar Campanha
+              </Button>
+            )}
             <button
               onClick={() => scrollToSection("sobre-nos")}
               className="inline-flex items-center justify-center px-6 py-3 border-2 border-white text-white hover:bg-white hover:text-primary-500 font-medium rounded-md transition-colors duration-200"
@@ -291,17 +380,17 @@ export const HomePage: React.FC = () => {
           <div className="bg-white shadow-card rounded-lg p-6 flex flex-col md:flex-row items-center justify-between">
             <div className="mb-4 md:mb-0 md:mr-8">
               <h3 className="font-display font-semibold text-xl text-gray-900 mb-2">
-                Procurando uma rifa específica?
+                Procurando algo específico?
               </h3>
               <p className="text-gray-600">
-                Use nossa busca para encontrar exatamente o que você procura.
+                Use nossa busca para encontrar rifas e campanhas do seu interesse.
               </p>
             </div>
             <div className="w-full md:w-1/2 lg:w-1/3">
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Buscar rifas..."
+                  placeholder="Buscar rifas e campanhas..."
                   className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 />
                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">

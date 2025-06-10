@@ -1,19 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { LayoutGrid, Ticket, Settings, PlusCircle, CreditCard, Users, Award } from 'lucide-react';
+import { format } from 'date-fns';
+import { LayoutGrid, Ticket, Settings, PlusCircle, CreditCard, Users, Award, Megaphone } from 'lucide-react';
 import { Layout } from '../components/layout/Layout';
 import { Button } from '../components/ui/Button';
 import { RaffleCard } from '../components/RaffleCard';
+import { CampaignCard } from '../components/campaigns/CampaignCard';
 import { ShareModal } from '../components/ShareModal';
-import { Raffle, Ticket as TicketType } from '../types';
+import { Raffle, Campaign, Ticket as TicketType } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserRaffles, getUserTickets, getRaffleById } from '../services/raffleService';
+import { getCampaigns } from '../services/campaignService';
 
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'overview' | 'myRaffles' | 'myTickets' | 'account'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'myRaffles' | 'myCampaigns' | 'myTickets' | 'account'>('overview');
   const [userRaffles, setUserRaffles] = useState<Raffle[]>([]);
+  const [userCampaigns, setUserCampaigns] = useState<Campaign[]>([]);
   const [userTickets, setUserTickets] = useState<(TicketType & { raffle: Raffle | null })[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -27,6 +31,12 @@ export const DashboardPage: React.FC = () => {
         
         const raffles = await getUserRaffles(user.id);
         setUserRaffles(raffles);
+        
+        // Fetch campaigns if user is admin
+        if (user.role === 'admin') {
+          const campaigns = await getCampaigns();
+          setUserCampaigns(campaigns.filter(c => c.createdBy === user.id));
+        }
         
         const tickets = await getUserTickets(user.id);
         
@@ -56,6 +66,10 @@ export const DashboardPage: React.FC = () => {
     navigate('/criar-rifa');
   };
 
+  const handleCreateCampaign = () => {
+    navigate('/criar-campanha');
+  };
+
   const handleBrowseRaffles = () => {
     navigate('/rifas');
   };
@@ -72,7 +86,7 @@ export const DashboardPage: React.FC = () => {
             Painel de Controle
           </h1>
           <p className="text-gray-600">
-            Bem-vindo(a), {user.name}. Gerencie suas rifas e participações.
+            Bem-vindo(a), {user.name}. Gerencie suas rifas, campanhas e participações.
           </p>
         </div>
         
@@ -123,6 +137,20 @@ export const DashboardPage: React.FC = () => {
                   <Award size={18} className="mr-3" />
                   <span className="text-sm font-medium">Minhas Rifas</span>
                 </button>
+
+                {user.role === 'admin' && (
+                  <button
+                    className={`w-full flex items-center px-6 py-3 text-left ${
+                      activeTab === 'myCampaigns'
+                        ? 'bg-primary-50 text-primary-600 border-l-4 border-primary-500'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                    onClick={() => setActiveTab('myCampaigns')}
+                  >
+                    <Megaphone size={18} className="mr-3" />
+                    <span className="text-sm font-medium">Minhas Campanhas</span>
+                  </button>
+                )}
                 
                 <button
                   className={`w-full flex items-center px-6 py-3 text-left ${
@@ -173,12 +201,12 @@ export const DashboardPage: React.FC = () => {
                   <div className="bg-white rounded-lg shadow-card p-6">
                     <div className="flex justify-between items-center mb-3">
                       <h3 className="text-sm font-medium text-gray-500">
-                        Rifas Criadas
+                        {user.role === 'admin' ? 'Rifas + Campanhas' : 'Rifas Criadas'}
                       </h3>
                       <Award size={18} className="text-primary-500" />
                     </div>
                     <p className="text-2xl font-display font-bold text-gray-900">
-                      {userRaffles.length}
+                      {user.role === 'admin' ? userRaffles.length + userCampaigns.length : userRaffles.length}
                     </p>
                   </div>
                   
@@ -209,6 +237,16 @@ export const DashboardPage: React.FC = () => {
                       >
                         Criar Nova Rifa
                       </Button>
+                      {user.role === 'admin' && (
+                        <Button 
+                          fullWidth
+                          variant="secondary"
+                          leftIcon={<Megaphone size={16} />}
+                          onClick={handleCreateCampaign}
+                        >
+                          Criar Nova Campanha
+                        </Button>
+                      )}
                       <Button 
                         fullWidth
                         variant="outline"
@@ -258,24 +296,20 @@ export const DashboardPage: React.FC = () => {
                   </div>
                 </div>
                 
-                {/* Recent Raffles */}
-                {userRaffles.length > 0 && (
+                {/* Recent Items */}
+                {(userRaffles.length > 0 || userCampaigns.length > 0) && (
                   <div className="mb-6">
                     <div className="flex justify-between items-center mb-4">
                       <h3 className="font-display font-semibold text-lg text-gray-900">
-                        Suas Rifas Recentes
+                        Suas Criações Recentes
                       </h3>
-                      <Link 
-                        to="#" 
-                        onClick={() => setActiveTab('myRaffles')} 
-                        className="text-sm text-primary-500 hover:text-primary-600"
-                      >
-                        Ver todas
-                      </Link>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {userRaffles.slice(0, 2).map(raffle => (
+                      {userRaffles.slice(0, 1).map(raffle => (
                         <RaffleCard key={raffle.id} raffle={raffle} />
+                      ))}
+                      {user.role === 'admin' && userCampaigns.slice(0, 1).map(campaign => (
+                        <CampaignCard key={campaign.id} campaign={campaign} />
                       ))}
                     </div>
                   </div>
@@ -290,7 +324,7 @@ export const DashboardPage: React.FC = () => {
                   <h2 className="font-display font-semibold text-xl text-gray-900">
                     Minhas Rifas
                   </h2>
-                  <Link to="/create-raffle">
+                  <Link to="/criar-rifa">
                     <Button leftIcon={<PlusCircle size={16} />}>
                       Nova Rifa
                     </Button>
@@ -325,9 +359,61 @@ export const DashboardPage: React.FC = () => {
                     <p className="text-gray-600 mb-6">
                       Você ainda não criou nenhuma rifa. Comece agora mesmo!
                     </p>
-                    <Link to="/create-raffle">
+                    <Link to="/criar-rifa">
                       <Button leftIcon={<PlusCircle size={16} />}>
                         Criar Minha Primeira Rifa
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* My Campaigns Tab */}
+            {activeTab === 'myCampaigns' && user.role === 'admin' && (
+              <div>
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="font-display font-semibold text-xl text-gray-900">
+                    Minhas Campanhas
+                  </h2>
+                  <Link to="/criar-campanha">
+                    <Button leftIcon={<Megaphone size={16} />}>
+                      Nova Campanha
+                    </Button>
+                  </Link>
+                </div>
+                
+                {isLoading ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-pulse">
+                    {[1, 2].map((item) => (
+                      <div key={item} className="bg-white rounded-lg overflow-hidden shadow-card">
+                        <div className="h-48 bg-gray-300"></div>
+                        <div className="p-4">
+                          <div className="h-6 bg-gray-300 rounded mb-3"></div>
+                          <div className="h-16 bg-gray-200 rounded mb-3"></div>
+                          <div className="h-10 bg-gray-300 rounded"></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : userCampaigns.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {userCampaigns.map(campaign => (
+                      <CampaignCard key={campaign.id} campaign={campaign} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-lg shadow-card p-8 text-center">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full mx-auto flex items-center justify-center mb-4">
+                      <Megaphone size={24} className="text-gray-400" />
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma campanha criada</h3>
+                    <p className="text-gray-600 mb-6">
+                      Você ainda não criou nenhuma campanha. Comece agora mesmo!
+                    </p>
+                    <Link to="/criar-campanha">
+                      <Button leftIcon={<Megaphone size={16} />}>
+                        Criar Minha Primeira Campanha
                       </Button>
                     </Link>
                   </div>
@@ -408,7 +494,7 @@ export const DashboardPage: React.FC = () => {
                             <Button 
                               variant="outline" 
                               size="sm"
-                              onClick={() => navigate(`/raffles/${ticket.raffleId}`)}
+                              onClick={() => navigate(`/rifas/${ticket.raffleId}`)}
                             >
                               Ver Rifa
                             </Button>
@@ -426,7 +512,7 @@ export const DashboardPage: React.FC = () => {
                     <p className="text-gray-600 mb-6">
                       Você ainda não comprou nenhum bilhete. Participe de uma rifa!
                     </p>
-                    <Link to="/raffles">
+                    <Link to="/rifas">
                       <Button>
                         Ver Rifas Disponíveis
                       </Button>
@@ -507,11 +593,18 @@ export const DashboardPage: React.FC = () => {
                       <p className="text-gray-600 mb-4">
                         Você tem privilégios de administrador nesta plataforma.
                       </p>
-                      <Link to="/admin">
-                        <Button>
-                          Acessar Painel Admin
-                        </Button>
-                      </Link>
+                      <div className="flex space-x-4">
+                        <Link to="/criar-campanha">
+                          <Button leftIcon={<Megaphone size={16} />}>
+                            Criar Nova Campanha
+                          </Button>
+                        </Link>
+                        <Link to="/campanhas">
+                          <Button variant="outline">
+                            Gerenciar Campanhas
+                          </Button>
+                        </Link>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -525,7 +618,7 @@ export const DashboardPage: React.FC = () => {
         isOpen={isShareModalOpen}
         onClose={() => setIsShareModalOpen(false)}
         url={window.location.origin}
-        title="Participe das melhores rifas online na Rifativa!"
+        title="Participe das melhores rifas e campanhas online na Rifativa!"
       />
     </Layout>
   );
