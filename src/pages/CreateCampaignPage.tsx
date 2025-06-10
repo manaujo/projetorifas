@@ -111,6 +111,8 @@ export const CreateCampaignPage: React.FC = () => {
     try {
       setIsSubmitting(true);
       
+      console.log('Dados da campanha:', data); // Debug
+      
       const campaignData = {
         title: data.title,
         description: data.description,
@@ -128,19 +130,24 @@ export const CreateCampaignPage: React.FC = () => {
           id: `prize-${index + 1}`,
           title: prize.title,
           description: prize.description,
-          imageUrl: prize.imageUrl,
+          imageUrl: prize.imageUrl || '',
           position: index + 1,
         })),
         createdBy: user.id,
         pixKey: data.pixKey,
       };
 
+      console.log('Payload final:', campaignData); // Debug
+
       const newCampaign = await createCampaign(campaignData);
+      
+      console.log('Campanha criada:', newCampaign); // Debug
+      
       toast.success('Campanha criada com sucesso!');
       navigate(`/campanhas/${newCampaign.id}`);
     } catch (error) {
+      console.error('Erro ao criar campanha:', error);
       toast.error('Erro ao criar campanha. Tente novamente.');
-      console.error('Failed to create campaign:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -168,7 +175,7 @@ export const CreateCampaignPage: React.FC = () => {
           id: `prize-${index + 1}`,
           title: prize.title,
           description: prize.description,
-          imageUrl: prize.imageUrl,
+          imageUrl: prize.imageUrl || '',
           position: index + 1,
         })),
         createdBy: user.id,
@@ -385,7 +392,7 @@ export const CreateCampaignPage: React.FC = () => {
                           )}
                         </div>
                         
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-4">
                           <Input
                             label="Título do Prêmio"
                             placeholder="Ex: iPhone 15 Pro Max"
@@ -393,31 +400,31 @@ export const CreateCampaignPage: React.FC = () => {
                             {...register(`prizes.${index}.title`)}
                           />
                           
-                          <Input
-                            label="URL da Imagem (opcional)"
-                            placeholder="https://exemplo.com/premio.jpg"
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Descrição do Prêmio
+                            </label>
+                            <textarea
+                              className={`w-full px-4 py-2 border rounded-md shadow-sm text-sm
+                                focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500
+                                ${errors.prizes?.[index]?.description ? 'border-error-500' : 'border-gray-300'}`}
+                              rows={3}
+                              placeholder="Descreva o prêmio em detalhes..."
+                              {...register(`prizes.${index}.description`)}
+                            />
+                            {errors.prizes?.[index]?.description && (
+                              <p className="mt-1 text-sm text-error-500">
+                                {errors.prizes[index]?.description?.message}
+                              </p>
+                            )}
+                          </div>
+
+                          <ImageUpload
+                            label="Imagem do Prêmio (opcional)"
+                            onImageUploaded={(url) => setValue(`prizes.${index}.imageUrl`, url)}
+                            currentImage={formValues.prizes?.[index]?.imageUrl}
                             error={errors.prizes?.[index]?.imageUrl?.message}
-                            {...register(`prizes.${index}.imageUrl`)}
                           />
-                        </div>
-                        
-                        <div className="mt-4">
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Descrição do Prêmio
-                          </label>
-                          <textarea
-                            className={`w-full px-4 py-2 border rounded-md shadow-sm text-sm
-                              focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500
-                              ${errors.prizes?.[index]?.description ? 'border-error-500' : 'border-gray-300'}`}
-                            rows={3}
-                            placeholder="Descreva o prêmio em detalhes..."
-                            {...register(`prizes.${index}.description`)}
-                          />
-                          {errors.prizes?.[index]?.description && (
-                            <p className="mt-1 text-sm text-error-500">
-                              {errors.prizes[index]?.description?.message}
-                            </p>
-                          )}
                         </div>
                       </div>
                     ))}

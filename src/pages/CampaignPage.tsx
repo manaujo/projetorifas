@@ -129,6 +129,7 @@ export const CampaignPage: React.FC = () => {
   const handlePurchase = async () => {
     if (!isAuthenticated || !user || !campaign || selectedTickets.length === 0) return;
 
+    // Verificar se a campanha tem PIX configurado
     if (!campaign.pixKey) {
       toast.error('Chave PIX não configurada para esta campanha');
       return;
@@ -183,6 +184,12 @@ export const CampaignPage: React.FC = () => {
   const maxSelectableTickets = campaign.mode === 'combo' && campaign.comboRules 
     ? Math.floor(comboValue / campaign.comboRules.baseValue) * campaign.comboRules.numbersPerValue
     : selectedTickets.length;
+
+  // Verificar se o botão deve estar habilitado
+  const isPurchaseButtonEnabled = selectedTickets.length > 0 && 
+                                  !isSubmitting && 
+                                  campaign.pixKey && 
+                                  campaign.status === 'active';
 
   return (
     <Layout>
@@ -299,6 +306,13 @@ export const CampaignPage: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {campaign.prizes.map((prize) => (
                         <div key={prize.id} className="bg-gray-50 p-4 rounded-lg">
+                          {prize.imageUrl && (
+                            <img 
+                              src={prize.imageUrl} 
+                              alt={prize.title}
+                              className="w-full h-32 object-cover rounded-md mb-3"
+                            />
+                          )}
                           <h4 className="font-medium text-gray-900 mb-1">{prize.title}</h4>
                           <p className="text-sm text-gray-600">{prize.description}</p>
                         </div>
@@ -410,10 +424,13 @@ export const CampaignPage: React.FC = () => {
                     fullWidth
                     size="lg"
                     onClick={handlePurchase}
-                    disabled={selectedTickets.length === 0 || isSubmitting || !campaign.pixKey}
+                    disabled={!isPurchaseButtonEnabled}
                     isLoading={isSubmitting}
                   >
-                    Comprar Bilhetes
+                    {!campaign.pixKey ? 'PIX não configurado' : 
+                     campaign.status !== 'active' ? 'Campanha inativa' :
+                     selectedTickets.length === 0 ? 'Selecione números' :
+                     'Comprar Bilhetes'}
                   </Button>
                 </div>
               )}
@@ -427,13 +444,14 @@ export const CampaignPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Modal de compra com PIX correto da campanha */}
       {campaign.pixKey && (
         <PurchaseModal
           isOpen={isPurchaseModalOpen}
           onClose={() => setIsPurchaseModalOpen(false)}
           selectedNumbers={selectedTickets}
           totalPrice={totalPrice}
-          pixKey={campaign.pixKey}
+          pixKey={campaign.pixKey} // PIX correto da campanha
           itemTitle={campaign.title}
           onConfirmPurchase={handleConfirmPurchase}
           isCombo={campaign.mode === 'combo'}

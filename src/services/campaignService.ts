@@ -14,8 +14,8 @@ let mockCampaigns: Campaign[] = [
     status: 'active',
     mode: 'combo',
     comboRules: {
-      buy: 5,
-      get: 1,
+      baseValue: 5,
+      numbersPerValue: 20,
     },
     prizes: [
       {
@@ -36,6 +36,7 @@ let mockCampaigns: Campaign[] = [
     createdBy: 'admin-1',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    pixKey: 'campanha@pix.com',
   },
   {
     id: 'campaign-2',
@@ -58,6 +59,7 @@ let mockCampaigns: Campaign[] = [
     createdBy: 'admin-1',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    pixKey: 'solidaria@pix.com',
   },
 ];
 
@@ -93,6 +95,8 @@ const checkDatabase = async () => {
 export const createCampaign = async (campaignData: Omit<Campaign, 'id' | 'createdAt' | 'updatedAt'>): Promise<Campaign> => {
   const dbAvailable = await checkDatabase();
   
+  console.log('Criando campanha:', campaignData); // Debug
+  
   if (!dbAvailable) {
     // Create mock campaign
     const mockCampaign: Campaign = {
@@ -108,11 +112,13 @@ export const createCampaign = async (campaignData: Omit<Campaign, 'id' | 'create
       comboRules: campaignData.comboRules,
       prizes: campaignData.prizes,
       createdBy: campaignData.createdBy,
+      pixKey: campaignData.pixKey,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
     mockCampaigns.push(mockCampaign);
+    console.log('Campanha mock criada:', mockCampaign); // Debug
     return mockCampaign;
   }
 
@@ -130,11 +136,17 @@ export const createCampaign = async (campaignData: Omit<Campaign, 'id' | 'create
         mode: campaignData.mode,
         combo_rules: campaignData.comboRules,
         created_by: campaignData.createdBy,
+        pix_key: campaignData.pixKey,
       })
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Erro no Supabase:', error);
+      throw error;
+    }
+
+    console.log('Campanha criada no Supabase:', data); // Debug
 
     return {
       id: data.id,
@@ -149,6 +161,7 @@ export const createCampaign = async (campaignData: Omit<Campaign, 'id' | 'create
       comboRules: data.combo_rules,
       prizes: campaignData.prizes,
       createdBy: data.created_by,
+      pixKey: data.pix_key,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
     };
@@ -168,6 +181,7 @@ export const createCampaign = async (campaignData: Omit<Campaign, 'id' | 'create
       comboRules: campaignData.comboRules,
       prizes: campaignData.prizes,
       createdBy: campaignData.createdBy,
+      pixKey: campaignData.pixKey,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -205,6 +219,7 @@ export const getCampaigns = async (): Promise<Campaign[]> => {
       comboRules: campaign.combo_rules,
       prizes: [], // Would need to fetch from a separate prizes table
       createdBy: campaign.created_by,
+      pixKey: campaign.pix_key,
       createdAt: campaign.created_at,
       updatedAt: campaign.updated_at,
     }));
@@ -243,6 +258,7 @@ export const getCampaignById = async (id: string): Promise<Campaign | null> => {
       comboRules: data.combo_rules,
       prizes: [], // Would need to fetch from a separate prizes table
       createdBy: data.created_by,
+      pixKey: data.pix_key,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
     };
