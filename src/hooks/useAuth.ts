@@ -27,7 +27,10 @@ export const useAuth = () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
         
-        if (error) throw error;
+        if (error) {
+          console.error('Erro ao verificar sessão:', error);
+          throw error;
+        }
 
         if (session?.user) {
           try {
@@ -113,6 +116,8 @@ export const useAuth = () => {
     try {
       setAuthState(prev => ({ ...prev, loading: true, error: null }));
 
+      console.log('Tentando criar conta:', email);
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -123,7 +128,12 @@ export const useAuth = () => {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro no signup:', error);
+        throw error;
+      }
+
+      console.log('Signup bem-sucedido:', data.user?.email);
 
       if (data.user) {
         // Criar perfil do usuário
@@ -144,13 +154,24 @@ export const useAuth = () => {
       return data;
     } catch (error) {
       console.error('Erro no cadastro:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Erro no cadastro';
+      let errorMessage = 'Erro no cadastro';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('User already registered')) {
+          errorMessage = 'Este email já está cadastrado';
+        } else if (error.message.includes('Password should be at least 6 characters')) {
+          errorMessage = 'A senha deve ter pelo menos 6 caracteres';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       setAuthState(prev => ({
         ...prev,
         loading: false,
         error: errorMessage,
       }));
-      throw error;
+      throw new Error(errorMessage);
     }
   };
 
@@ -181,6 +202,8 @@ export const useAuth = () => {
           errorMessage = 'Email ou senha incorretos';
         } else if (error.message.includes('Email not confirmed')) {
           errorMessage = 'Email não confirmado. Verifique sua caixa de entrada.';
+        } else if (error.message.includes('Too many requests')) {
+          errorMessage = 'Muitas tentativas de login. Tente novamente em alguns minutos.';
         } else {
           errorMessage = error.message;
         }
@@ -191,12 +214,13 @@ export const useAuth = () => {
         loading: false,
         error: errorMessage,
       }));
-      throw error;
+      throw new Error(errorMessage);
     }
   };
 
   const signOut = async () => {
     try {
+      setAuthState(prev => ({ ...prev, loading: true }));
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
     } catch (error) {

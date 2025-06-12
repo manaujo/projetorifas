@@ -18,8 +18,10 @@ export class UserService {
       if (error) {
         // Se o perfil não existe, retornar null em vez de erro
         if (error.code === 'PGRST116') {
+          console.log('Perfil não encontrado para usuário:', userId);
           return null;
         }
+        console.error('Erro ao buscar perfil:', error);
         throw error;
       }
       return data;
@@ -32,13 +34,20 @@ export class UserService {
   // POST /api/users - Criar perfil do usuário
   static async createProfile(userData: UserInsert): Promise<User> {
     try {
+      console.log('Criando perfil para usuário:', userData);
+      
       const { data, error } = await supabase
         .from('users')
         .insert(userData)
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao criar perfil:', error);
+        throw error;
+      }
+      
+      console.log('Perfil criado com sucesso:', data);
       return data;
     } catch (error) {
       console.error('Erro ao criar perfil:', error);
@@ -135,6 +144,17 @@ export class UserService {
     } catch (error) {
       console.error('Erro ao verificar limites:', error);
       throw new Error('Erro ao verificar limites do plano');
+    }
+  }
+
+  // Verificar se o usuário tem um plano ativo
+  static async hasActivePlan(userId: string): Promise<boolean> {
+    try {
+      const user = await this.getProfile(userId);
+      return !!(user && user.plano);
+    } catch (error) {
+      console.error('Erro ao verificar plano ativo:', error);
+      return false;
     }
   }
 

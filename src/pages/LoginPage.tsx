@@ -176,20 +176,6 @@ export const LoginPage: React.FC = () => {
               </Button>
             </div>
           </div>
-
-          {/* Informações de teste */}
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-            <h4 className="text-sm font-medium text-blue-800 mb-2">
-              🧪 Conta de Teste
-            </h4>
-            <div className="text-xs text-blue-700 space-y-1">
-              <p><strong>Email:</strong> marcio.araujo.m7@gmail.com</p>
-              <p><strong>Senha:</strong> 1234567</p>
-              <p className="text-blue-600 mt-2">
-                Use essas credenciais para testar o sistema como administrador.
-              </p>
-            </div>
-          </div>
         </div>
       </div>
     </div>
