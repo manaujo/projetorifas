@@ -5,46 +5,41 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import { Camera, Calendar, DollarSign, Hash, AlertTriangle, Save, Eye, CreditCard } from 'lucide-react';
+import { Camera, DollarSign, Hash, AlertTriangle, Save, Eye, CreditCard } from 'lucide-react';
 import { Layout } from '../components/layout/Layout';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { ImageUpload } from '../components/ui/ImageUpload';
 import { useAuth } from '../contexts/AuthContext';
-import { createRaffle } from '../services/raffleService';
+import { RifaService } from '../services/api/rifaService';
+import { UserService } from '../services/api/userService';
 
 const createRaffleSchema = z.object({
-  title: z.string()
+  titulo: z.string()
     .min(5, 'O título deve ter pelo menos 5 caracteres')
     .max(100, 'O título deve ter no máximo 100 caracteres'),
-  description: z.string()
+  descricao: z.string()
     .min(20, 'A descrição deve ter pelo menos 20 caracteres')
     .max(500, 'A descrição deve ter no máximo 500 caracteres'),
-  price: z.number()
+  valor_bilhete: z.number()
     .min(1, 'O valor mínimo é R$ 1,00')
     .max(1000, 'O valor máximo é R$ 1.000,00'),
-  totalNumbers: z.number()
-    .min(10, 'Mínimo de 10 números')
-    .max(10000, 'Máximo de 10.000 números'),
-  drawDate: z.string()
-    .refine((date) => new Date(date) > new Date(), {
-      message: 'A data do sorteio deve ser no futuro',
-    }),
-  isCharity: z.boolean().default(false),
-  imageUrl: z.string().min(1, 'Imagem é obrigatória'),
-  pixKey: z.string()
+  quantidade_bilhetes: z.number()
+    .min(10, 'Mínimo de 10 bilhetes')
+    .max(1000000, 'Máximo de 1.000.000 bilhetes'),
+  chave_pix: z.string()
     .min(1, 'Chave PIX é obrigatória')
     .max(77, 'Chave PIX inválida'),
-  status: z.enum(['draft', 'active']).default('draft'),
+  imagem_url: z.string().min(1, 'Imagem é obrigatória'),
 });
 
 type CreateRaffleFormData = z.infer<typeof createRaffleSchema>;
 
 export const CreateRafflePage: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile, hasPlan } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [previewMode, setPreviewMode] = useState(false);
+  const [planLimits, setPlanLimits] = useState<any>(null);
   
   const {
     register,
@@ -56,23 +51,75 @@ export const CreateRafflePage: React.FC = () => {
     resolver: zodResolver(createRaffleSchema),
     mode: 'onChange',
     defaultValues: {
-      status: 'draft',
-      isCharity: false,
-      imageUrl: '',
+      imagem_url: '',
+      chave_pix: profile?.chave_pix || '',
     }
   });
 
   const formValues = watch();
+
+  // Verificar se o usuário pode criar rifas
+  React.useEffect(() => {
+    const checkLimits = async () => {
+      if (user) {
+        try {
+          const limits = await UserService.checkPlanLimits(user.id);
+          setPlanLimits(limits);
+          
+          if (!limits.canCreateRifa) {
+            toast.error('Você atingiu o limite de rifas do seu plano');
+            navigate('/dashboard');
+          }
+        } catch (error) {
+          console.error('Erro ao verificar limites:', error);
+        }
+      }
+    };
+
+    if (user && hasPlan) {
+      checkLimits();
+    }
+  }, [user, hasPlan, navigate]);
+
+  // Verificar se o usuário tem plano
+  if (!user || !hasPlan) {
+    return (
+      <Layout>
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-md mx-auto text-center">
+            <div className="bg-white rounded-lg shadow-card p-8">
+              <AlertTriangle className="mx-auto h-12 w-12 text-warning-500 mb-4" />
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                Plano Necessário
+              </h2>
+              <p className="text-gray-600 mb-4">
+                Para criar rifas, você precisa de um plano ativo.
+              </p>
+              <div className="space-y-3">
+                <Button onClick={() => navigate('/precos')} fullWidth>
+                  Ver Planos
+                </Button>
+                <Button variant="outline" onClick={() => navigate('/rifas')} fullWidth>
+                  Ver Rifas Disponíveis
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   const onSubmit = async (data: CreateRaffleFormData) => {
     if (!user) return;
 
     try {
       setIsSubmitting(true);
-      const newRaffle = await createRaffle({
+      
+      const newRaffle = await RifaService.createRifa({
         ...data,
-        createdBy: user.id,
-        status: 'active', // Always create as active
+        criador_id: user.id,
+        status: 'ativa',
       });
 
       toast.success('Rifa criada com sucesso!');
@@ -80,28 +127,6 @@ export const CreateRafflePage: React.FC = () => {
     } catch (error) {
       toast.error('Erro ao criar rifa. Tente novamente.');
       console.error('Failed to create raffle:', error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleSaveAsDraft = async () => {
-    if (!user) return;
-
-    const formData = watch();
-    try {
-      setIsSubmitting(true);
-      const newRaffle = await createRaffle({
-        ...formData,
-        createdBy: user.id,
-        status: 'draft',
-      });
-
-      toast.success('Rascunho salvo com sucesso!');
-      navigate(`/rifas/${newRaffle.id}`);
-    } catch (error) {
-      toast.error('Erro ao salvar rascunho. Tente novamente.');
-      console.error('Failed to save draft:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -116,16 +141,27 @@ export const CreateRafflePage: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <h1 className="font-display font-bold text-2xl md:text-3xl text-gray-900 mb-2">
-              Criar Nova Rifa
-            </h1>
-            <p className="text-gray-600 mb-8">
-              Preencha os dados abaixo para criar sua campanha
-            </p>
+            <div className="mb-6">
+              <h1 className="font-display font-bold text-2xl md:text-3xl text-gray-900 mb-2">
+                Criar Nova Rifa
+              </h1>
+              <p className="text-gray-600">
+                Preencha os dados abaixo para criar sua rifa
+              </p>
+              
+              {planLimits && (
+                <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+                  <p className="text-sm text-blue-700">
+                    <strong>Plano {profile?.plano}:</strong> {planLimits.rifasRestantes} rifas restantes, 
+                    máximo {planLimits.maxBilhetes.toLocaleString()} bilhetes por rifa
+                  </p>
+                </div>
+              )}
+            </div>
 
             <div className="bg-white rounded-lg shadow-card p-6">
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                {/* Basic Information */}
+                {/* Informações Básicas */}
                 <div>
                   <h2 className="font-display font-semibold text-xl text-gray-900 mb-4 flex items-center">
                     <Camera className="mr-2" size={20} />
@@ -136,8 +172,8 @@ export const CreateRafflePage: React.FC = () => {
                     <Input
                       label="Título da Rifa"
                       placeholder="Ex: iPhone 15 Pro Max"
-                      error={errors.title?.message}
-                      {...register('title')}
+                      error={errors.titulo?.message}
+                      {...register('titulo')}
                     />
 
                     <div>
@@ -147,54 +183,60 @@ export const CreateRafflePage: React.FC = () => {
                       <textarea
                         className={`w-full px-4 py-2 border rounded-md shadow-sm text-sm
                           focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500
-                          ${errors.description ? 'border-error-500' : 'border-gray-300'}`}
+                          ${errors.descricao ? 'border-error-500' : 'border-gray-300'}`}
                         rows={4}
                         placeholder="Descreva os detalhes da sua rifa..."
-                        {...register('description')}
+                        {...register('descricao')}
                       />
-                      {errors.description && (
+                      {errors.descricao && (
                         <p className="mt-1 text-sm text-error-500">
-                          {errors.description.message}
+                          {errors.descricao.message}
                         </p>
                       )}
                     </div>
 
-                    <ImageUpload
-                      label="Imagem da Rifa"
-                      onImageUploaded={(url) => setValue('imageUrl', url)}
-                      currentImage={formValues.imageUrl}
-                      error={errors.imageUrl?.message}
-                    />
+                    {user && (
+                      <ImageUpload
+                        label="Imagem da Rifa"
+                        onImageUploaded={(url) => setValue('imagem_url', url)}
+                        currentImage={formValues.imagem_url}
+                        error={errors.imagem_url?.message}
+                        type="rifa"
+                        userId={user.id}
+                      />
+                    )}
                   </div>
                 </div>
 
-                {/* Pricing and Numbers */}
+                {/* Configurações */}
                 <div>
                   <h2 className="font-display font-semibold text-xl text-gray-900 mb-4 flex items-center">
                     <DollarSign className="mr-2" size={20} />
-                    Preços e Números
+                    Configurações
                   </h2>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Input
                       type="number"
-                      label="Valor por Número (R$)"
+                      step="0.01"
+                      label="Valor por Bilhete (R$)"
                       placeholder="10.00"
-                      error={errors.price?.message}
-                      {...register('price', { valueAsNumber: true })}
+                      error={errors.valor_bilhete?.message}
+                      {...register('valor_bilhete', { valueAsNumber: true })}
                     />
 
                     <Input
                       type="number"
-                      label="Quantidade de Números"
+                      label="Quantidade de Bilhetes"
                       placeholder="100"
-                      error={errors.totalNumbers?.message}
-                      {...register('totalNumbers', { valueAsNumber: true })}
+                      error={errors.quantidade_bilhetes?.message}
+                      {...register('quantidade_bilhetes', { valueAsNumber: true })}
+                      helperText={planLimits ? `Máximo: ${planLimits.maxBilhetes.toLocaleString()}` : undefined}
                     />
                   </div>
                 </div>
 
-                {/* Payment Information */}
+                {/* Pagamento */}
                 <div>
                   <h2 className="font-display font-semibold text-xl text-gray-900 mb-4 flex items-center">
                     <CreditCard className="mr-2" size={20} />
@@ -204,49 +246,13 @@ export const CreateRafflePage: React.FC = () => {
                   <Input
                     label="Chave PIX"
                     placeholder="Ex: seu@email.com, 11999999999 ou chave aleatória"
-                    error={errors.pixKey?.message}
+                    error={errors.chave_pix?.message}
                     helperText="Esta chave será exibida aos compradores para pagamento"
-                    {...register('pixKey')}
+                    {...register('chave_pix')}
                   />
                 </div>
 
-                {/* Schedule */}
-                <div>
-                  <h2 className="font-display font-semibold text-xl text-gray-900 mb-4 flex items-center">
-                    <Calendar className="mr-2" size={20} />
-                    Agendamento
-                  </h2>
-                  
-                  <Input
-                    type="datetime-local"
-                    label="Data do Sorteio"
-                    error={errors.drawDate?.message}
-                    {...register('drawDate')}
-                  />
-                </div>
-
-                {/* Additional Options */}
-                <div>
-                  <h2 className="font-display font-semibold text-xl text-gray-900 mb-4">
-                    Opções Adicionais
-                  </h2>
-                  
-                  <div className="space-y-4">
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id="isCharity"
-                        className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                        {...register('isCharity')}
-                      />
-                      <label htmlFor="isCharity" className="ml-2 block text-sm text-gray-900">
-                        Esta é uma rifa beneficente
-                      </label>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Warning */}
+                {/* Aviso */}
                 <div className="bg-warning-50 border border-warning-200 rounded-md p-4">
                   <div className="flex">
                     <div className="flex-shrink-0">
@@ -266,25 +272,14 @@ export const CreateRafflePage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Actions */}
+                {/* Ações */}
                 <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-3 pt-6 border-t">
                   <Button
                     type="button"
                     variant="outline"
-                    leftIcon={<Eye size={16} />}
-                    onClick={() => setPreviewMode(!previewMode)}
+                    onClick={() => navigate('/dashboard')}
                   >
-                    {previewMode ? 'Editar' : 'Pré-visualizar'}
-                  </Button>
-                  
-                  <Button
-                    type="button"
-                    variant="outline"
-                    leftIcon={<Save size={16} />}
-                    onClick={handleSaveAsDraft}
-                    disabled={isSubmitting}
-                  >
-                    Salvar Rascunho
+                    Cancelar
                   </Button>
                   
                   <Button

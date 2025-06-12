@@ -2,19 +2,24 @@ import React, { useState, useRef } from 'react';
 import { Upload, X, Image as ImageIcon } from 'lucide-react';
 import { Button } from './Button';
 import { toast } from 'react-hot-toast';
+import { UploadService } from '../../services/api/uploadService';
 
 interface ImageUploadProps {
   onImageUploaded: (url: string) => void;
   currentImage?: string;
   label?: string;
   error?: string;
+  type: 'rifa' | 'campanha';
+  userId: string;
 }
 
 export const ImageUpload: React.FC<ImageUploadProps> = ({
   onImageUploaded,
   currentImage,
   label = "Imagem",
-  error
+  error,
+  type,
+  userId
 }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [preview, setPreview] = useState<string | null>(currentImage || null);
@@ -24,30 +29,26 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast.error('Por favor, selecione apenas arquivos de imagem');
-      return;
-    }
-
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('A imagem deve ter no máximo 5MB');
+    // Validar arquivo
+    const validation = UploadService.validateImageFile(file);
+    if (!validation.valid) {
+      toast.error(validation.error || 'Arquivo inválido');
       return;
     }
 
     try {
       setIsUploading(true);
 
-      // Convert file to base64 for preview
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        setPreview(result);
-        onImageUploaded(result);
-      };
-      reader.readAsDataURL(file);
+      // Upload da imagem
+      let imageUrl: string;
+      if (type === 'rifa') {
+        imageUrl = await UploadService.uploadRifaImage(file, userId);
+      } else {
+        imageUrl = await UploadService.uploadCampanhaImage(file, userId);
+      }
 
+      setPreview(imageUrl);
+      onImageUploaded(imageUrl);
       toast.success('Imagem carregada com sucesso!');
     } catch (error) {
       console.error('Upload error:', error);
@@ -57,7 +58,16 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     }
   };
 
-  const handleRemoveImage = () => {
+  const handleRemoveImage = async () => {
+    if (preview && preview !== currentImage) {
+      try {
+        const bucket = type === 'rifa' ? 'rifas_fotos' : 'campanhas_fotos';
+        await UploadService.deleteImage(preview, bucket);
+      } catch (error) {
+        console.error('Erro ao deletar imagem:', error);
+      }
+    }
+
     setPreview(null);
     onImageUploaded('');
     if (fileInputRef.current) {
@@ -84,7 +94,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
             <button
               type="button"
               onClick={handleRemoveImage}
-              className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+              disabled={isUploading}
+              className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors disabled:opacity-50"
             >
               <X size={16} />
             </button>
@@ -101,7 +112,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
               Clique para fazer upload da imagem
             </p>
             <p className="text-xs text-gray-500">
-              PNG, JPG, GIF até 5MB
+              PNG, JPG, WebP até 5MB
             </p>
           </div>
         )}
@@ -112,6 +123,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
           accept="image/*"
           onChange={handleFileSelect}
           className="hidden"
+          disabled={isUploading}
         />
 
         <div className="flex gap-2">
