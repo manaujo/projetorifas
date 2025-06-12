@@ -30,13 +30,23 @@ export const useAuth = () => {
         if (error) throw error;
 
         if (session?.user) {
-          const profile = await UserService.getProfile(session.user.id);
-          setAuthState({
-            user: session.user,
-            profile,
-            loading: false,
-            error: null,
-          });
+          try {
+            const profile = await UserService.getProfile(session.user.id);
+            setAuthState({
+              user: session.user,
+              profile,
+              loading: false,
+              error: null,
+            });
+          } catch (profileError) {
+            console.error('Erro ao buscar perfil:', profileError);
+            setAuthState({
+              user: session.user,
+              profile: null,
+              loading: false,
+              error: null,
+            });
+          }
         } else {
           setAuthState({
             user: null,
@@ -61,6 +71,8 @@ export const useAuth = () => {
     // Escutar mudanças na autenticação
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.email);
+        
         if (session?.user) {
           try {
             const profile = await UserService.getProfile(session.user.id);
@@ -76,7 +88,7 @@ export const useAuth = () => {
               user: session.user,
               profile: null,
               loading: false,
-              error: 'Erro ao buscar perfil',
+              error: null,
             });
           }
         } else {
@@ -104,28 +116,39 @@ export const useAuth = () => {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            nome: userData.nome,
+          }
+        }
       });
 
       if (error) throw error;
 
       if (data.user) {
         // Criar perfil do usuário
-        await UserService.createProfile({
-          id: data.user.id,
-          nome: userData.nome,
-          email,
-          telefone: userData.telefone,
-          cpf: userData.cpf,
-        });
+        try {
+          await UserService.createProfile({
+            id: data.user.id,
+            nome: userData.nome,
+            email,
+            telefone: userData.telefone,
+            cpf: userData.cpf,
+          });
+        } catch (profileError) {
+          console.error('Erro ao criar perfil:', profileError);
+          // Não falhar o cadastro se o perfil não for criado
+        }
       }
 
       return data;
     } catch (error) {
       console.error('Erro no cadastro:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erro no cadastro';
       setAuthState(prev => ({
         ...prev,
         loading: false,
-        error: error instanceof Error ? error.message : 'Erro no cadastro',
+        error: errorMessage,
       }));
       throw error;
     }
@@ -135,19 +158,38 @@ export const useAuth = () => {
     try {
       setAuthState(prev => ({ ...prev, loading: true, error: null }));
 
+      console.log('Tentando fazer login com:', email);
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro de autenticação:', error);
+        throw error;
+      }
+
+      console.log('Login bem-sucedido:', data.user?.email);
       return data;
     } catch (error) {
       console.error('Erro no login:', error);
+      let errorMessage = 'Erro no login';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('Invalid login credentials')) {
+          errorMessage = 'Email ou senha incorretos';
+        } else if (error.message.includes('Email not confirmed')) {
+          errorMessage = 'Email não confirmado. Verifique sua caixa de entrada.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       setAuthState(prev => ({
         ...prev,
         loading: false,
-        error: error instanceof Error ? error.message : 'Erro no login',
+        error: errorMessage,
       }));
       throw error;
     }
@@ -199,6 +241,14 @@ export const useAuth = () => {
     }
   };
 
+  // Função de login para compatibilidade
+  const login = signIn;
+
+  // Função de register para compatibilidade
+  const register = async (name: string, email: string, password: string) => {
+    return signUp(email, password, { nome: name });
+  };
+
   return {
     ...authState,
     signUp,
@@ -206,8 +256,14 @@ export const useAuth = () => {
     signOut,
     updateProfile,
     updatePlan,
+    login, // Alias para signIn
+    register, // Alias para signUp
     isAuthenticated: !!authState.user,
     hasProfile: !!authState.profile,
     hasPlan: !!authState.profile?.plano,
+    // Compatibilidade com o código existente
+    isLoading: authState.loading,
+    user: authState.user,
+    error: authState.error,
   };
 };

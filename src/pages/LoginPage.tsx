@@ -19,7 +19,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
-  const { login, error } = useAuth();
+  const { signIn, error, isLoading: authLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
@@ -30,11 +30,18 @@ export const LoginPage: React.FC = () => {
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     try {
-      await login(data.email, data.password);
+      console.log('Iniciando login para:', data.email);
+      await signIn(data.email, data.password);
       toast.success('Login realizado com sucesso!');
       navigate('/dashboard');
     } catch (err) {
-      // Error handling is done in AuthContext
+      console.error('Erro no login:', err);
+      // O erro já é tratado no hook useAuth
+      if (err instanceof Error) {
+        toast.error(err.message);
+      } else {
+        toast.error('Erro ao fazer login. Tente novamente.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -134,10 +141,11 @@ export const LoginPage: React.FC = () => {
               <Button
                 type="submit"
                 fullWidth
-                isLoading={isLoading}
+                isLoading={isLoading || authLoading}
                 leftIcon={<Mail size={16} />}
+                disabled={isLoading || authLoading}
               >
-                Entrar
+                {isLoading || authLoading ? 'Entrando...' : 'Entrar'}
               </Button>
             </div>
           </form>
@@ -166,6 +174,20 @@ export const LoginPage: React.FC = () => {
                 />
                 Google (Em breve)
               </Button>
+            </div>
+          </div>
+
+          {/* Informações de teste */}
+          <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+            <h4 className="text-sm font-medium text-blue-800 mb-2">
+              🧪 Conta de Teste
+            </h4>
+            <div className="text-xs text-blue-700 space-y-1">
+              <p><strong>Email:</strong> marcio.araujo.m7@gmail.com</p>
+              <p><strong>Senha:</strong> 1234567</p>
+              <p className="text-blue-600 mt-2">
+                Use essas credenciais para testar o sistema como administrador.
+              </p>
             </div>
           </div>
         </div>

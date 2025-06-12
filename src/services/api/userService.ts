@@ -15,11 +15,17 @@ export class UserService {
         .eq('id', userId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        // Se o perfil não existe, retornar null em vez de erro
+        if (error.code === 'PGRST116') {
+          return null;
+        }
+        throw error;
+      }
       return data;
     } catch (error) {
       console.error('Erro ao buscar perfil:', error);
-      throw new Error('Erro ao buscar perfil do usuário');
+      return null; // Retornar null em caso de erro para não quebrar o fluxo
     }
   }
 
@@ -129,6 +135,30 @@ export class UserService {
     } catch (error) {
       console.error('Erro ao verificar limites:', error);
       throw new Error('Erro ao verificar limites do plano');
+    }
+  }
+
+  // Criar usuário administrador de teste
+  static async createTestAdmin(): Promise<void> {
+    try {
+      const testAdminData: UserInsert = {
+        id: '00000000-0000-0000-0000-000000000000', // ID fixo para teste
+        nome: 'Administrador',
+        email: 'marcio.araujo.m7@gmail.com',
+        plano: 'premium',
+        rifas_criadas: 0,
+        campanhas_criadas: 0,
+        chave_pix: 'admin@pix.com',
+      };
+
+      // Verificar se já existe
+      const existing = await this.getProfile(testAdminData.id);
+      if (!existing) {
+        await this.createProfile(testAdminData);
+        console.log('Usuário administrador de teste criado');
+      }
+    } catch (error) {
+      console.error('Erro ao criar admin de teste:', error);
     }
   }
 }

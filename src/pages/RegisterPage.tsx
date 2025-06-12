@@ -26,7 +26,7 @@ type RegisterFormData = z.infer<typeof registerSchema>;
 
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
-  const { register: registerUser, error } = useAuth();
+  const { signUp, error, isLoading: authLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -42,11 +42,18 @@ export const RegisterPage: React.FC = () => {
   const onSubmit = async (data: RegisterFormData) => {
     setIsLoading(true);
     try {
-      await registerUser(data.name, data.email, data.password);
+      console.log('Iniciando cadastro para:', data.email);
+      await signUp(data.email, data.password, { nome: data.name });
       toast.success("Conta criada com sucesso!");
       navigate("/dashboard");
     } catch (err) {
-      // Error handling is done in AuthContext
+      console.error('Erro no cadastro:', err);
+      // O erro já é tratado no hook useAuth
+      if (err instanceof Error) {
+        toast.error(err.message);
+      } else {
+        toast.error('Erro ao criar conta. Tente novamente.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -168,10 +175,11 @@ export const RegisterPage: React.FC = () => {
               <Button
                 type="submit"
                 fullWidth
-                isLoading={isLoading}
+                isLoading={isLoading || authLoading}
                 leftIcon={<User size={16} />}
+                disabled={isLoading || authLoading}
               >
-                Criar conta
+                {isLoading || authLoading ? 'Criando conta...' : 'Criar conta'}
               </Button>
             </div>
           </form>
