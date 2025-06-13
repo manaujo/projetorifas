@@ -21,6 +21,39 @@ export const useAuth = () => {
     error: null,
   });
 
+  // Função para garantir que o perfil do usuário existe
+  const ensureUserProfile = async (user: User): Promise<UserProfile | null> => {
+    try {
+      // Primeiro, tenta buscar o perfil existente
+      let profile = await UserService.getProfile(user.id);
+      
+      if (!profile) {
+        console.log('Perfil não encontrado, criando novo perfil para:', user.email);
+        
+        // Se não existe, cria um novo perfil
+        const newProfileData = {
+          id: user.id,
+          nome: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Usuário',
+          email: user.email || '',
+          telefone: user.user_metadata?.phone || null,
+          cpf: null,
+          plano: null, // Usuário começa sem plano
+          rifas_criadas: 0,
+          campanhas_criadas: 0,
+          chave_pix: null,
+        };
+
+        profile = await UserService.createProfile(newProfileData);
+        console.log('Novo perfil criado:', profile);
+      }
+      
+      return profile;
+    } catch (error) {
+      console.error('Erro ao garantir perfil do usuário:', error);
+      return null;
+    }
+  };
+
   useEffect(() => {
     // Verificar sessão atual
     const getSession = async () => {
@@ -29,18 +62,12 @@ export const useAuth = () => {
         
         if (error) {
           console.error('Erro ao verificar sessão:', error);
-          setAuthState({
-            user: null,
-            profile: null,
-            loading: false,
-            error: 'Erro ao verificar sessão',
-          });
-          return;
+          throw error;
         }
 
         if (session?.user) {
           try {
-            const profile = await UserService.getProfile(session.user.id);
+            const profile = await ensureUserProfile(session.user);
             setAuthState({
               user: session.user,
               profile,
@@ -48,7 +75,7 @@ export const useAuth = () => {
               error: null,
             });
           } catch (profileError) {
-            console.error('Erro ao buscar perfil:', profileError);
+            console.error('Erro ao buscar/criar perfil:', profileError);
             setAuthState({
               user: session.user,
               profile: null,
@@ -84,7 +111,7 @@ export const useAuth = () => {
         
         if (session?.user) {
           try {
-            const profile = await UserService.getProfile(session.user.id);
+            const profile = await ensureUserProfile(session.user);
             setAuthState({
               user: session.user,
               profile,
@@ -92,7 +119,7 @@ export const useAuth = () => {
               error: null,
             });
           } catch (error) {
-            console.error('Erro ao buscar perfil:', error);
+            console.error('Erro ao buscar/criar perfil:', error);
             setAuthState({
               user: session.user,
               profile: null,
@@ -129,7 +156,8 @@ export const useAuth = () => {
         password,
         options: {
           data: {
-            nome: userData.nome,
+            full_name: userData.nome,
+            phone: userData.telefone,
           }
         }
       });
@@ -142,15 +170,9 @@ export const useAuth = () => {
       console.log('Signup bem-sucedido:', data.user?.email);
 
       if (data.user) {
-        // Criar perfil do usuário
+        // Criar perfil do usuário automaticamente
         try {
-          await UserService.createProfile({
-            id: data.user.id,
-            nome: userData.nome,
-            email,
-            telefone: userData.telefone,
-            cpf: userData.cpf,
-          });
+          await ensureUserProfile(data.user);
         } catch (profileError) {
           console.error('Erro ao criar perfil:', profileError);
           // Não falhar o cadastro se o perfil não for criado
@@ -198,6 +220,8 @@ export const useAuth = () => {
       }
 
       console.log('Login bem-sucedido:', data.user?.email);
+      
+      // O perfil será criado/buscado automaticamente pelo onAuthStateChange
       return data;
     } catch (error) {
       console.error('Erro no login:', error);
@@ -271,6 +295,14 @@ export const useAuth = () => {
     }
   };
 
+  // Função de login para compatibilidade
+  const login = signIn;
+
+  // Função de register para compatibilidade
+  const register = async (name: string, email: string, password: string) => {
+    return signUp(email, password, { nome: name });
+  };
+
   return {
     ...authState,
     signUp,
@@ -278,9 +310,12 @@ export const useAuth = () => {
     signOut,
     updateProfile,
     updatePlan,
+    login, // Alias para signIn
+    register, // Alias para signUp
     isAuthenticated: !!authState.user,
     hasProfile: !!authState.profile,
     hasPlan: !!authState.profile?.plano,
+    // Compatibilidade com o código existente
     isLoading: authState.loading,
     user: authState.user,
     error: authState.error,

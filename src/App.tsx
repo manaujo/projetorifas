@@ -17,18 +17,16 @@ import { AboutPage } from './pages/AboutPage';
 import { FAQPage } from './pages/FAQPage';
 import { PricingPage } from './pages/PricingPage';
 import { ContactPage } from './pages/ContactPage';
+import { SuccessPage } from './pages/SuccessPage';
 import { AdminPurchasesPage } from './pages/AdminPurchasesPage';
+import { hasActivePlan } from './services/authService';
 
 // Protected route wrapper
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isLoading } = useAuth();
   
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-      </div>
-    );
+    return <div className="flex items-center justify-center min-h-screen">Carregando...</div>;
   }
   
   if (!isAuthenticated) {
@@ -40,21 +38,17 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 // Plan required route wrapper
 const PlanRequiredRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, profile, isLoading } = useAuth();
+  const { isAuthenticated, user, isLoading } = useAuth();
   
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-      </div>
-    );
+    return <div className="flex items-center justify-center min-h-screen">Carregando...</div>;
   }
   
   if (!isAuthenticated) {
     return <Navigate to="/login" />;
   }
   
-  if (!profile?.plano) {
+  if (!user || (!hasActivePlan(user) && user.role !== 'admin')) {
     return <Navigate to="/precos" />;
   }
   
@@ -78,6 +72,7 @@ function App() {
           <Route path="/faq" element={<FAQPage />} />
           <Route path="/precos" element={<PricingPage />} />
           <Route path="/contato" element={<ContactPage />} />
+          <Route path="/success" element={<SuccessPage />} />
           
           {/* Protected routes */}
           <Route 

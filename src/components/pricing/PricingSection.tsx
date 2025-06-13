@@ -1,14 +1,88 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Check, Star } from 'lucide-react';
+import { Check, Star, Loader2 } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { stripeProducts } from '../../stripe-config';
+import { StripeService } from '../../services/stripeService';
+import { useAuth } from '../../contexts/AuthContext';
+import { toast } from 'react-hot-toast';
 
 export const PricingSection: React.FC = () => {
+  const { isAuthenticated } = useAuth();
+  const [loadingPriceId, setLoadingPriceId] = useState<string | null>(null);
+
   const fadeInUp = {
     initial: { opacity: 0, y: 20 },
     animate: { opacity: 1, y: 0 },
     transition: { duration: 0.5 }
+  };
+
+  const handlePurchase = async (priceId: string, mode: 'payment' | 'subscription') => {
+    if (!isAuthenticated) {
+      toast.error('Você precisa estar logado para fazer uma compra');
+      return;
+    }
+
+    setLoadingPriceId(priceId);
+
+    try {
+      const { url } = await StripeService.createCheckoutSession({
+        priceId,
+        successUrl: `${window.location.origin}/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancelUrl: `${window.location.origin}/precos`,
+        mode,
+      });
+
+      if (url) {
+        window.location.href = url;
+      }
+    } catch (error) {
+      console.error('Error creating checkout session:', error);
+      toast.error('Erro ao processar pagamento. Tente novamente.');
+    } finally {
+      setLoadingPriceId(null);
+    }
+  };
+
+  const getPrice = (name: string) => {
+    switch (name) {
+      case 'Econômico':
+        return 'R$ 97,00';
+      case 'Padrão':
+        return 'R$ 159,90';
+      case 'Premium':
+        return 'R$ 499,00';
+      default:
+        return 'Consulte';
+    }
+  };
+
+  const getFeatures = (name: string) => {
+    switch (name) {
+      case 'Econômico':
+        return [
+          'Até 2 rifas',
+          'Até 2 campanhas',
+          'Até 100.000 bilhetes',
+        ];
+      case 'Padrão':
+        return [
+          'Tudo do plano Econômico',
+          'Até 5 rifas',
+          'Até 5 campanhas',
+          'Até 500.000 bilhetes',
+        ];
+      case 'Premium':
+        return [
+          'Tudo do plano Padrão',
+          'Até 10 rifas',
+          'Até 10 campanhas',
+          'Até 1.000.000 bilhetes',
+        ];
+      default:
+        return [];
+    }
   };
 
   return (
@@ -31,102 +105,69 @@ export const PricingSection: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* Plano Econômico */}
-          <motion.div 
-            className="bg-white rounded-2xl shadow-card hover:shadow-lg transition-shadow duration-300"
-            {...fadeInUp}
-            transition={{ delay: 0.2 }}
-          >
-            <div className="p-8">
-              <h3 className="font-display font-bold text-xl text-gray-900 mb-4">Econômico</h3>
-              <div className="mb-6">
-                <span className="text-3xl font-bold text-primary-500">R$ 97,00</span>
-                <span className="text-gray-500 ml-2">por campanha</span>
-              </div>
-              <ul className="space-y-4 mb-8">
-                <li className="flex items-center text-gray-600">
-                  <Check size={20} className="text-primary-500 mr-2 flex-shrink-0" />
-                  <span>Até R$ 5,00 por bilhete</span>
-                </li>
-                <li className="flex items-center text-gray-600">
-                  <Check size={20} className="text-primary-500 mr-2 flex-shrink-0" />
-                  <span>Até 1.000 bilhetes</span>
-                </li>
-              </ul>
-              <Link to="/nova-rifa">
-                <Button fullWidth>Começar agora</Button>
-              </Link>
-            </div>
-          </motion.div>
+          {stripeProducts.map((product, index) => {
+            const isPopular = product.name === 'Padrão';
+            const features = getFeatures(product.name);
+            const price = getPrice(product.name);
+            const isLoading = loadingPriceId === product.priceId;
 
-          {/* Plano Padrão */}
-          <motion.div 
-            className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300 transform md:-translate-y-4 relative"
-            {...fadeInUp}
-            transition={{ delay: 0.3 }}
-          >
-            <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-              <div className="bg-gold-500 text-primary-900 text-sm font-medium px-4 py-1 rounded-full flex items-center">
-                <Star size={16} className="mr-1" />
-                Mais Popular
-              </div>
-            </div>
-            <div className="p-8 border-2 border-primary-500 rounded-2xl">
-              <h3 className="font-display font-bold text-xl text-gray-900 mb-4">Padrão</h3>
-              <div className="mb-6">
-                <span className="text-3xl font-bold text-primary-500">R$ 159,90</span>
-                <span className="text-gray-500 ml-2">por campanha</span>
-              </div>
-              <ul className="space-y-4 mb-8">
-                <li className="flex items-center text-gray-600">
-                  <Check size={20} className="text-primary-500 mr-2 flex-shrink-0" />
-                  <span>Tudo do plano Econômico</span>
-                </li>
-                <li className="flex items-center text-gray-600">
-                  <Check size={20} className="text-primary-500 mr-2 flex-shrink-0" />
-                  <span>Valor ilimitado por bilhete</span>
-                </li>
-                <li className="flex items-center text-gray-600">
-                  <Check size={20} className="text-primary-500 mr-2 flex-shrink-0" />
-                  <span>Até 100.000 bilhetes</span>
-                </li>
-              </ul>
-              <Link to="/nova-rifa">
-                <Button fullWidth variant="secondary">Começar agora</Button>
-              </Link>
-            </div>
-          </motion.div>
-
-          {/* Plano Premium */}
-          <motion.div 
-            className="bg-white rounded-2xl shadow-card hover:shadow-lg transition-shadow duration-300"
-            {...fadeInUp}
-            transition={{ delay: 0.4 }}
-          >
-            <div className="p-8">
-              <h3 className="font-display font-bold text-xl text-gray-900 mb-4">Premium</h3>
-              <div className="mb-6">
-                <div className="flex items-center">
-                  <span className="text-3xl font-bold text-primary-500">R$ 499,00</span>
-                  <span className="text-gray-500 ml-2">por campanha</span>
+            return (
+              <motion.div 
+                key={product.priceId}
+                className={`bg-white rounded-2xl shadow-card hover:shadow-lg transition-shadow duration-300 ${
+                  isPopular ? 'transform md:-translate-y-4 relative' : ''
+                }`}
+                {...fadeInUp}
+                transition={{ delay: 0.2 + index * 0.1 }}
+              >
+                {isPopular && (
+                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                    <div className="bg-gold-500 text-primary-900 text-sm font-medium px-4 py-1 rounded-full flex items-center">
+                      <Star size={16} className="mr-1" />
+                      Mais Popular
+                    </div>
+                  </div>
+                )}
+                
+                <div className={`p-8 ${isPopular ? 'border-2 border-primary-500 rounded-2xl' : ''}`}>
+                  <h3 className="font-display font-bold text-xl text-gray-900 mb-4">
+                    {product.name}
+                  </h3>
+                  <div className="mb-6">
+                    <span className="text-3xl font-bold text-primary-500">{price}</span>
+                    <span className="text-gray-500 ml-2">por campanha</span>
+                  </div>
+                  
+                  <ul className="space-y-4 mb-8">
+                    {features.map((feature, featureIndex) => (
+                      <li key={featureIndex} className="flex items-center text-gray-600">
+                        <Check size={20} className="text-primary-500 mr-2 flex-shrink-0" />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  
+                  {isAuthenticated ? (
+                    <Button
+                      fullWidth
+                      variant={isPopular ? 'secondary' : 'primary'}
+                      onClick={() => handlePurchase(product.priceId, product.mode)}
+                      disabled={isLoading}
+                      leftIcon={isLoading ? <Loader2 size={16} className="animate-spin" /> : undefined}
+                    >
+                      {isLoading ? 'Processando...' : 'Começar agora'}
+                    </Button>
+                  ) : (
+                    <Link to="/login">
+                      <Button fullWidth variant={isPopular ? 'secondary' : 'primary'}>
+                        Fazer login para comprar
+                      </Button>
+                    </Link>
+                  )}
                 </div>
-                <span className="text-sm text-error-500 line-through">De R$ 999,90</span>
-              </div>
-              <ul className="space-y-4 mb-8">
-                <li className="flex items-center text-gray-600">
-                  <Check size={20} className="text-primary-500 mr-2 flex-shrink-0" />
-                  <span>Tudo do plano Padrão</span>
-                </li>
-                <li className="flex items-center text-gray-600">
-                  <Check size={20} className="text-primary-500 mr-2 flex-shrink-0" />
-                  <span>Até 1.000.000 de bilhetes</span>
-                </li>
-              </ul>
-              <Link to="/nova-rifa">
-                <Button fullWidth>Começar agora</Button>
-              </Link>
-            </div>
-          </motion.div>
+              </motion.div>
+            );
+          })}
         </div>
       </div>
     </section>
