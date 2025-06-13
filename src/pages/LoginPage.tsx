@@ -19,7 +19,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
-  const { signIn, error, isLoading: authLoading } = useAuth();
+  const { login, error } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
@@ -30,18 +30,11 @@ export const LoginPage: React.FC = () => {
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     try {
-      console.log('Iniciando login para:', data.email);
-      await signIn(data.email, data.password);
+      await login(data.email, data.password);
       toast.success('Login realizado com sucesso!');
       navigate('/dashboard');
     } catch (err) {
-      console.error('Erro no login:', err);
-      // O erro já é tratado no hook useAuth
-      if (err instanceof Error) {
-        toast.error(err.message);
-      } else {
-        toast.error('Erro ao fazer login. Tente novamente.');
-      }
+      // Error handling is done in AuthContext
     } finally {
       setIsLoading(false);
     }
@@ -141,11 +134,10 @@ export const LoginPage: React.FC = () => {
               <Button
                 type="submit"
                 fullWidth
-                isLoading={isLoading || authLoading}
+                isLoading={isLoading}
                 leftIcon={<Mail size={16} />}
-                disabled={isLoading || authLoading}
               >
-                {isLoading || authLoading ? 'Entrando...' : 'Entrar'}
+                Entrar
               </Button>
             </div>
           </form>

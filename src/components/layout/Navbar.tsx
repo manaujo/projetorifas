@@ -2,18 +2,19 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Ticket, User, LogOut, Menu, X, Home, Gift, PlusCircle, Megaphone, Crown, Settings } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { hasActivePlan } from '../../services/authService';
 import { Button } from '../ui/Button';
 import { Logo } from '../Logo';
 
 export const Navbar: React.FC = () => {
-  const { isAuthenticated, profile, signOut } = useAuth();
+  const { isAuthenticated, user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
   
   const toggleMenu = () => setMenuOpen(!menuOpen);
   const closeMenu = () => setMenuOpen(false);
   
-  const canCreateContent = profile?.plano;
+  const canCreateContent = user && (hasActivePlan(user) || user.role === 'admin');
   
   return (
     <header className="bg-white shadow-sm fixed w-full top-0 z-50">
@@ -101,9 +102,9 @@ export const Navbar: React.FC = () => {
           <div className="hidden md:flex items-center space-x-4">
             {isAuthenticated ? (
               <div className="flex items-center space-x-2">
-                {!canCreateContent && (
+                {!canCreateContent && user?.role !== 'admin' && (
                   <Link to="/precos">
-                    <Button variant="secondary" leftIcon={<Crown size={16} />} size="sm">
+                    <Button variant="secondary\" leftIcon={<Crown size={16} />} size="sm">
                       Upgrade
                     </Button>
                   </Link>
@@ -134,7 +135,7 @@ export const Navbar: React.FC = () => {
                     Minha Conta
                   </Button>
                 </Link>
-                <Button variant="outline" leftIcon={<LogOut size={16} />} onClick={signOut}>
+                <Button variant="outline" leftIcon={<LogOut size={16} />} onClick={logout}>
                   Sair
                 </Button>
               </div>
@@ -245,7 +246,7 @@ export const Navbar: React.FC = () => {
             <div className="mt-3 px-2 space-y-1">
               {isAuthenticated ? (
                 <>
-                  {!canCreateContent && (
+                  {!canCreateContent && user?.role !== 'admin' && (
                     <Link 
                       to="/precos" 
                       className="block px-3 py-2 rounded-md text-base font-medium text-gold-600 hover:bg-gold-50"
@@ -304,7 +305,7 @@ export const Navbar: React.FC = () => {
                     </div>
                   </Link>
                   <button
-                    onClick={() => { signOut(); closeMenu(); }}
+                    onClick={() => { logout(); closeMenu(); }}
                     className="w-full text-left block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-100"
                   >
                     <div className="flex items-center">

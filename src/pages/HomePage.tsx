@@ -12,11 +12,12 @@ import { Raffle, Campaign } from "../types";
 import { getRaffles } from "../services/raffleService";
 import { getCampaigns } from "../services/campaignService";
 import { useAuth } from "../contexts/AuthContext";
+import { hasActivePlan } from "../services/authService";
 import Img from "../assets/c0b098c0-29eb-447e-b616-1fdf7002095e.png";
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, profile } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [activeRaffles, setActiveRaffles] = useState<Raffle[]>([]);
   const [activeCampaigns, setActiveCampaigns] = useState<Campaign[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -59,7 +60,7 @@ export const HomePage: React.FC = () => {
       return;
     }
     
-    if (!profile?.plano) {
+    if (!user || (!hasActivePlan(user) && user.role !== 'admin')) {
       navigate('/precos');
       return;
     }
@@ -72,12 +73,10 @@ export const HomePage: React.FC = () => {
       navigate('/login');
       return;
     }
-    
-    if (!profile?.plano) {
-      navigate('/precos');
+    if (user?.role !== 'admin') {
+      navigate('/dashboard');
       return;
     }
-    
     navigate('/criar-campanha');
   };
 
@@ -371,9 +370,9 @@ export const HomePage: React.FC = () => {
                 Nenhuma campanha ativa no momento
               </h3>
               <p className="text-gray-600 mb-6">
-                {profile?.plano ? 'Crie a primeira campanha!' : 'Aguarde novas campanhas!'}
+                {user?.role === 'admin' ? 'Crie a primeira campanha!' : 'Aguarde novas campanhas!'}
               </p>
-              {profile?.plano && (
+              {user?.role === 'admin' && (
                 <Button onClick={handleCreateCampaign}>
                   Criar Primeira Campanha
                 </Button>
@@ -397,7 +396,7 @@ export const HomePage: React.FC = () => {
             <Button size="lg" variant="secondary" onClick={handleCreateRaffle}>
               Criar Minha Rifa
             </Button>
-            {profile?.plano && (
+            {user?.role === 'admin' && (
               <Button 
                 size="lg" 
                 variant="outline"

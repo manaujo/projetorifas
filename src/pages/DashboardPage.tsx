@@ -14,7 +14,7 @@ import { getCampaigns } from '../services/campaignService';
 
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'overview' | 'myRaffles' | 'myCampaigns' | 'myTickets' | 'account'>('overview');
   const [userRaffles, setUserRaffles] = useState<Raffle[]>([]);
   const [userCampaigns, setUserCampaigns] = useState<Campaign[]>([]);
@@ -32,8 +32,8 @@ export const DashboardPage: React.FC = () => {
         const raffles = await getUserRaffles(user.id);
         setUserRaffles(raffles);
         
-        // Fetch campaigns if user has plan
-        if (profile?.plano) {
+        // Fetch campaigns if user is admin
+        if (user.role === 'admin') {
           const campaigns = await getCampaigns();
           setUserCampaigns(campaigns.filter(c => c.createdBy === user.id));
         }
@@ -56,7 +56,7 @@ export const DashboardPage: React.FC = () => {
     };
     
     fetchUserData();
-  }, [user, profile]);
+  }, [user]);
 
   if (!user) {
     return null;
@@ -86,7 +86,7 @@ export const DashboardPage: React.FC = () => {
             Painel de Controle
           </h1>
           <p className="text-gray-600">
-            Bem-vindo(a), {profile?.nome || user.email}. Gerencie suas rifas, campanhas e participações.
+            Bem-vindo(a), {user.name}. Gerencie suas rifas, campanhas e participações.
           </p>
         </div>
         
@@ -97,18 +97,18 @@ export const DashboardPage: React.FC = () => {
               <div className="p-6 border-b border-gray-200">
                 <div className="flex items-center">
                   <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center text-primary-500 mr-4">
-                    {(profile?.nome || user.email).charAt(0).toUpperCase()}
+                    {user.name.charAt(0).toUpperCase()}
                   </div>
                   <div>
                     <h2 className="font-medium text-base text-gray-900">
-                      {profile?.nome || user.email}
+                      {user.name}
                     </h2>
                     <p className="text-sm text-gray-500">{user.email}</p>
                   </div>
                 </div>
-                {profile?.plano && (
+                {user.role === 'admin' && (
                   <span className="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
-                    Plano {profile.plano}
+                    Administrador
                   </span>
                 )}
               </div>
@@ -138,7 +138,7 @@ export const DashboardPage: React.FC = () => {
                   <span className="text-sm font-medium">Minhas Rifas</span>
                 </button>
 
-                {profile?.plano && (
+                {user.role === 'admin' && (
                   <button
                     className={`w-full flex items-center px-6 py-3 text-left ${
                       activeTab === 'myCampaigns'
@@ -189,24 +189,24 @@ export const DashboardPage: React.FC = () => {
                   <div className="bg-white rounded-lg shadow-card p-6">
                     <div className="flex justify-between items-center mb-3">
                       <h3 className="text-sm font-medium text-gray-500">
-                        Plano Atual
+                        Saldo Disponível
                       </h3>
                       <CreditCard size={18} className="text-primary-500" />
                     </div>
                     <p className="text-2xl font-display font-bold text-gray-900">
-                      {profile?.plano ? profile.plano.charAt(0).toUpperCase() + profile.plano.slice(1) : 'Gratuito'}
+                      R$ {user.balance.toFixed(2).replace('.', ',')}
                     </p>
                   </div>
                   
                   <div className="bg-white rounded-lg shadow-card p-6">
                     <div className="flex justify-between items-center mb-3">
                       <h3 className="text-sm font-medium text-gray-500">
-                        {profile?.plano ? 'Rifas + Campanhas' : 'Rifas Criadas'}
+                        {user.role === 'admin' ? 'Rifas + Campanhas' : 'Rifas Criadas'}
                       </h3>
                       <Award size={18} className="text-primary-500" />
                     </div>
                     <p className="text-2xl font-display font-bold text-gray-900">
-                      {profile?.plano ? userRaffles.length + userCampaigns.length : userRaffles.length}
+                      {user.role === 'admin' ? userRaffles.length + userCampaigns.length : userRaffles.length}
                     </p>
                   </div>
                   
@@ -230,30 +230,22 @@ export const DashboardPage: React.FC = () => {
                       Ações Rápidas
                     </h3>
                     <div className="space-y-3">
-                      {!profile?.plano ? (
-                        <Link to="/precos">
-                          <Button fullWidth leftIcon={<CreditCard size={16} />}>
-                            Escolher Plano
-                          </Button>
-                        </Link>
-                      ) : (
-                        <>
-                          <Button 
-                            fullWidth
-                            leftIcon={<PlusCircle size={16} />}
-                            onClick={handleCreateRaffle}
-                          >
-                            Criar Nova Rifa
-                          </Button>
-                          <Button 
-                            fullWidth
-                            variant="secondary"
-                            leftIcon={<Megaphone size={16} />}
-                            onClick={handleCreateCampaign}
-                          >
-                            Criar Nova Campanha
-                          </Button>
-                        </>
+                      <Button 
+                        fullWidth
+                        leftIcon={<PlusCircle size={16} />}
+                        onClick={handleCreateRaffle}
+                      >
+                        Criar Nova Rifa
+                      </Button>
+                      {user.role === 'admin' && (
+                        <Button 
+                          fullWidth
+                          variant="secondary"
+                          leftIcon={<Megaphone size={16} />}
+                          onClick={handleCreateCampaign}
+                        >
+                          Criar Nova Campanha
+                        </Button>
                       )}
                       <Button 
                         fullWidth
@@ -316,7 +308,7 @@ export const DashboardPage: React.FC = () => {
                       {userRaffles.slice(0, 1).map(raffle => (
                         <RaffleCard key={raffle.id} raffle={raffle} />
                       ))}
-                      {profile?.plano && userCampaigns.slice(0, 1).map(campaign => (
+                      {user.role === 'admin' && userCampaigns.slice(0, 1).map(campaign => (
                         <CampaignCard key={campaign.id} campaign={campaign} />
                       ))}
                     </div>
@@ -332,19 +324,11 @@ export const DashboardPage: React.FC = () => {
                   <h2 className="font-display font-semibold text-xl text-gray-900">
                     Minhas Rifas
                   </h2>
-                  {profile?.plano ? (
-                    <Link to="/criar-rifa">
-                      <Button leftIcon={<PlusCircle size={16} />}>
-                        Nova Rifa
-                      </Button>
-                    </Link>
-                  ) : (
-                    <Link to="/precos">
-                      <Button leftIcon={<CreditCard size={16} />}>
-                        Escolher Plano
-                      </Button>
-                    </Link>
-                  )}
+                  <Link to="/criar-rifa">
+                    <Button leftIcon={<PlusCircle size={16} />}>
+                      Nova Rifa
+                    </Button>
+                  </Link>
                 </div>
                 
                 {isLoading ? (
@@ -373,49 +357,30 @@ export const DashboardPage: React.FC = () => {
                     </div>
                     <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma rifa criada</h3>
                     <p className="text-gray-600 mb-6">
-                      {profile?.plano 
-                        ? 'Você ainda não criou nenhuma rifa. Comece agora mesmo!'
-                        : 'Para criar rifas, você precisa escolher um plano.'
-                      }
+                      Você ainda não criou nenhuma rifa. Comece agora mesmo!
                     </p>
-                    {profile?.plano ? (
-                      <Link to="/criar-rifa">
-                        <Button leftIcon={<PlusCircle size={16} />}>
-                          Criar Minha Primeira Rifa
-                        </Button>
-                      </Link>
-                    ) : (
-                      <Link to="/precos">
-                        <Button leftIcon={<CreditCard size={16} />}>
-                          Escolher Plano
-                        </Button>
-                      </Link>
-                    )}
+                    <Link to="/criar-rifa">
+                      <Button leftIcon={<PlusCircle size={16} />}>
+                        Criar Minha Primeira Rifa
+                      </Button>
+                    </Link>
                   </div>
                 )}
               </div>
             )}
 
             {/* My Campaigns Tab */}
-            {activeTab === 'myCampaigns' && (
+            {activeTab === 'myCampaigns' && user.role === 'admin' && (
               <div>
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="font-display font-semibold text-xl text-gray-900">
                     Minhas Campanhas
                   </h2>
-                  {profile?.plano ? (
-                    <Link to="/criar-campanha">
-                      <Button leftIcon={<Megaphone size={16} />}>
-                        Nova Campanha
-                      </Button>
-                    </Link>
-                  ) : (
-                    <Link to="/precos">
-                      <Button leftIcon={<CreditCard size={16} />}>
-                        Escolher Plano
-                      </Button>
-                    </Link>
-                  )}
+                  <Link to="/criar-campanha">
+                    <Button leftIcon={<Megaphone size={16} />}>
+                      Nova Campanha
+                    </Button>
+                  </Link>
                 </div>
                 
                 {isLoading ? (
@@ -444,24 +409,13 @@ export const DashboardPage: React.FC = () => {
                     </div>
                     <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma campanha criada</h3>
                     <p className="text-gray-600 mb-6">
-                      {profile?.plano 
-                        ? 'Você ainda não criou nenhuma campanha. Comece agora mesmo!'
-                        : 'Para criar campanhas, você precisa escolher um plano.'
-                      }
+                      Você ainda não criou nenhuma campanha. Comece agora mesmo!
                     </p>
-                    {profile?.plano ? (
-                      <Link to="/criar-campanha">
-                        <Button leftIcon={<Megaphone size={16} />}>
-                          Criar Minha Primeira Campanha
-                        </Button>
-                      </Link>
-                    ) : (
-                      <Link to="/precos">
-                        <Button leftIcon={<CreditCard size={16} />}>
-                          Escolher Plano
-                        </Button>
-                      </Link>
-                    )}
+                    <Link to="/criar-campanha">
+                      <Button leftIcon={<Megaphone size={16} />}>
+                        Criar Minha Primeira Campanha
+                      </Button>
+                    </Link>
                   </div>
                 )}
               </div>
@@ -585,7 +539,7 @@ export const DashboardPage: React.FC = () => {
                         </label>
                         <input
                           type="text"
-                          value={profile?.nome || ''}
+                          value={user.name}
                           disabled
                           className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50"
                         />
@@ -596,7 +550,7 @@ export const DashboardPage: React.FC = () => {
                         </label>
                         <input
                           type="email"
-                          value={user.email || ''}
+                          value={user.email}
                           disabled
                           className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50"
                         />
@@ -605,33 +559,49 @@ export const DashboardPage: React.FC = () => {
                   </div>
                   
                   <div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">Plano Atual</h3>
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      <p className="text-sm text-gray-600 mb-2">
-                        <strong>Plano:</strong> {profile?.plano ? profile.plano.charAt(0).toUpperCase() + profile.plano.slice(1) : 'Nenhum plano ativo'}
-                      </p>
-                      {!profile?.plano && (
-                        <Link to="/precos">
-                          <Button size="sm">
-                            Escolher Plano
-                          </Button>
-                        </Link>
-                      )}
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">Alterar Senha</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Senha Atual
+                        </label>
+                        <input
+                          type="password"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Nova Senha
+                        </label>
+                        <input
+                          type="password"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-4">
+                      <Button>
+                        Salvar Alterações
+                      </Button>
                     </div>
                   </div>
                   
-                  {profile?.plano && (
+                  {user.role === 'admin' && (
                     <div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-4">Ações Rápidas</h3>
+                      <h3 className="text-lg font-medium text-gray-900 mb-4">Configurações de Administrador</h3>
+                      <p className="text-gray-600 mb-4">
+                        Você tem privilégios de administrador nesta plataforma.
+                      </p>
                       <div className="flex space-x-4">
-                        <Link to="/criar-rifa">
-                          <Button leftIcon={<PlusCircle size={16} />}>
-                            Criar Nova Rifa
+                        <Link to="/criar-campanha">
+                          <Button leftIcon={<Megaphone size={16} />}>
+                            Criar Nova Campanha
                           </Button>
                         </Link>
-                        <Link to="/criar-campanha">
-                          <Button variant="outline" leftIcon={<Megaphone size={16} />}>
-                            Criar Campanha
+                        <Link to="/campanhas">
+                          <Button variant="outline">
+                            Gerenciar Campanhas
                           </Button>
                         </Link>
                       </div>

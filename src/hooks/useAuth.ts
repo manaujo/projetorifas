@@ -27,35 +27,16 @@ export const useAuth = () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
         
-        if (error) {
-          console.error('Erro ao verificar sessão:', error);
-          setAuthState({
-            user: null,
-            profile: null,
-            loading: false,
-            error: 'Erro ao verificar sessão',
-          });
-          return;
-        }
+        if (error) throw error;
 
         if (session?.user) {
-          try {
-            const profile = await UserService.getProfile(session.user.id);
-            setAuthState({
-              user: session.user,
-              profile,
-              loading: false,
-              error: null,
-            });
-          } catch (profileError) {
-            console.error('Erro ao buscar perfil:', profileError);
-            setAuthState({
-              user: session.user,
-              profile: null,
-              loading: false,
-              error: null,
-            });
-          }
+          const profile = await UserService.getProfile(session.user.id);
+          setAuthState({
+            user: session.user,
+            profile,
+            loading: false,
+            error: null,
+          });
         } else {
           setAuthState({
             user: null,
@@ -80,8 +61,6 @@ export const useAuth = () => {
     // Escutar mudanças na autenticação
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.email);
-        
         if (session?.user) {
           try {
             const profile = await UserService.getProfile(session.user.id);
@@ -97,7 +76,7 @@ export const useAuth = () => {
               user: session.user,
               profile: null,
               loading: false,
-              error: null,
+              error: 'Erro ao buscar perfil',
             });
           }
         } else {
@@ -122,62 +101,33 @@ export const useAuth = () => {
     try {
       setAuthState(prev => ({ ...prev, loading: true, error: null }));
 
-      console.log('Tentando criar conta:', email);
-
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          data: {
-            nome: userData.nome,
-          }
-        }
       });
 
-      if (error) {
-        console.error('Erro no signup:', error);
-        throw error;
-      }
-
-      console.log('Signup bem-sucedido:', data.user?.email);
+      if (error) throw error;
 
       if (data.user) {
         // Criar perfil do usuário
-        try {
-          await UserService.createProfile({
-            id: data.user.id,
-            nome: userData.nome,
-            email,
-            telefone: userData.telefone,
-            cpf: userData.cpf,
-          });
-        } catch (profileError) {
-          console.error('Erro ao criar perfil:', profileError);
-          // Não falhar o cadastro se o perfil não for criado
-        }
+        await UserService.createProfile({
+          id: data.user.id,
+          nome: userData.nome,
+          email,
+          telefone: userData.telefone,
+          cpf: userData.cpf,
+        });
       }
 
       return data;
     } catch (error) {
       console.error('Erro no cadastro:', error);
-      let errorMessage = 'Erro no cadastro';
-      
-      if (error instanceof Error) {
-        if (error.message.includes('User already registered')) {
-          errorMessage = 'Este email já está cadastrado';
-        } else if (error.message.includes('Password should be at least 6 characters')) {
-          errorMessage = 'A senha deve ter pelo menos 6 caracteres';
-        } else {
-          errorMessage = error.message;
-        }
-      }
-      
       setAuthState(prev => ({
         ...prev,
         loading: false,
-        error: errorMessage,
+        error: error instanceof Error ? error.message : 'Erro no cadastro',
       }));
-      throw new Error(errorMessage);
+      throw error;
     }
   };
 
@@ -185,48 +135,26 @@ export const useAuth = () => {
     try {
       setAuthState(prev => ({ ...prev, loading: true, error: null }));
 
-      console.log('Tentando fazer login com:', email);
-
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) {
-        console.error('Erro de autenticação:', error);
-        throw error;
-      }
-
-      console.log('Login bem-sucedido:', data.user?.email);
+      if (error) throw error;
       return data;
     } catch (error) {
       console.error('Erro no login:', error);
-      let errorMessage = 'Erro no login';
-      
-      if (error instanceof Error) {
-        if (error.message.includes('Invalid login credentials')) {
-          errorMessage = 'Email ou senha incorretos';
-        } else if (error.message.includes('Email not confirmed')) {
-          errorMessage = 'Email não confirmado. Verifique sua caixa de entrada.';
-        } else if (error.message.includes('Too many requests')) {
-          errorMessage = 'Muitas tentativas de login. Tente novamente em alguns minutos.';
-        } else {
-          errorMessage = error.message;
-        }
-      }
-      
       setAuthState(prev => ({
         ...prev,
         loading: false,
-        error: errorMessage,
+        error: error instanceof Error ? error.message : 'Erro no login',
       }));
-      throw new Error(errorMessage);
+      throw error;
     }
   };
 
   const signOut = async () => {
     try {
-      setAuthState(prev => ({ ...prev, loading: true }));
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
     } catch (error) {
@@ -281,8 +209,5 @@ export const useAuth = () => {
     isAuthenticated: !!authState.user,
     hasProfile: !!authState.profile,
     hasPlan: !!authState.profile?.plano,
-    isLoading: authState.loading,
-    user: authState.user,
-    error: authState.error,
   };
 };
