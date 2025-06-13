@@ -1,213 +1,212 @@
-import { useState, useEffect } from 'react';
-import { User } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
-import { UserService } from '../services/api/userService';
-import { Database } from '../lib/database.types';
+import { useState, useEffect, createContext, useContext } from 'react';
+import { User as SupabaseUser } from '@supabase/supabase-js';
+import { supabase, handleSupabaseError } from '../lib/supabase';
+import { User } from '../types';
 
-type UserProfile = Database['public']['Tables']['users']['Row'];
-
-interface AuthState {
+interface AuthContextType {
   user: User | null;
-  profile: UserProfile | null;
   loading: boolean;
   error: string | null;
+  signUp: (email: string, password: string, userData: Partial<User>) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<void>;
+  signOut: () => Promise<void>;
+  updateProfile: (updates: Partial<User>) => Promise<void>;
+  clearError: () => void;
 }
 
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
 export const useAuth = () => {
-  const [authState, setAuthState] = useState<AuthState>({
-    user: null,
-    profile: null,
-    loading: true,
-    error: null,
-  });
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
+
+export const useAuthProvider = () => {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Verificar sessão atual
+    // Get initial session
     const getSession = async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) throw error;
-
+        const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
-          const profile = await UserService.getProfile(session.user.id);
-          setAuthState({
-            user: session.user,
-            profile,
-            loading: false,
-            error: null,
-          });
-        } else {
-          setAuthState({
-            user: null,
-            profile: null,
-            loading: false,
-            error: null,
-          });
+          await loadUserProfile(session.user);
         }
-      } catch (error) {
-        console.error('Erro ao verificar sessão:', error);
-        setAuthState({
-          user: null,
-          profile: null,
-          loading: false,
-          error: 'Erro ao verificar sessão',
-        });
+      } catch (err) {
+        console.error('Error getting session:', err);
+      } finally {
+        setLoading(false);
       }
     };
 
     getSession();
 
-    // Escutar mudanças na autenticação
+    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (session?.user) {
-          try {
-            const profile = await UserService.getProfile(session.user.id);
-            setAuthState({
-              user: session.user,
-              profile,
-              loading: false,
-              error: null,
-            });
-          } catch (error) {
-            console.error('Erro ao buscar perfil:', error);
-            setAuthState({
-              user: session.user,
-              profile: null,
-              loading: false,
-              error: 'Erro ao buscar perfil',
-            });
-          }
+          await loadUserProfile(session.user);
         } else {
-          setAuthState({
-            user: null,
-            profile: null,
-            loading: false,
-            error: null,
-          });
+          setUser(null);
         }
+        setLoading(false);
       }
     );
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, userData: {
-    nome: string;
-    telefone?: string;
-    cpf?: string;
-  }) => {
+  const loadUserProfile = async (authUser: SupabaseUser) => {
     try {
-      setAuthState(prev => ({ ...prev, loading: true, error: null }));
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', authUser.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        throw error;
+      }
+
+      if (data) {
+        setUser(data);
+      } else {
+        // Create profile if it doesn't exist
+        const newUser: Partial<User> = {
+          id: authUser.id,
+          email: authUser.email!,
+          nome: authUser.user_metadata?.nome || authUser.email!.split('@')[0],
+          plano_ativo: false,
+        };
+
+        const { data: createdUser, error: createError } = await supabase
+          .from('users')
+          .insert(newUser)
+          .select()
+          .single();
+
+        if (createError) throw createError;
+        setUser(createdUser);
+      }
+    } catch (err) {
+      console.error('Error loading user profile:', err);
+      setError(handleSupabaseError(err));
+    }
+  };
+
+  const signUp = async (email: string, password: string, userData: Partial<User>) => {
+    try {
+      setLoading(true);
+      setError(null);
 
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            nome: userData.nome,
+          }
+        }
       });
 
       if (error) throw error;
 
       if (data.user) {
-        // Criar perfil do usuário
-        await UserService.createProfile({
+        const newUser: Partial<User> = {
           id: data.user.id,
-          nome: userData.nome,
           email,
-          telefone: userData.telefone,
+          nome: userData.nome!,
           cpf: userData.cpf,
-        });
-      }
+          telefone: userData.telefone,
+          plano_ativo: false,
+        };
 
-      return data;
-    } catch (error) {
-      console.error('Erro no cadastro:', error);
-      setAuthState(prev => ({
-        ...prev,
-        loading: false,
-        error: error instanceof Error ? error.message : 'Erro no cadastro',
-      }));
-      throw error;
+        const { error: profileError } = await supabase
+          .from('users')
+          .insert(newUser);
+
+        if (profileError) throw profileError;
+      }
+    } catch (err) {
+      setError(handleSupabaseError(err));
+      throw err;
+    } finally {
+      setLoading(false);
     }
   };
 
   const signIn = async (email: string, password: string) => {
     try {
-      setAuthState(prev => ({ ...prev, loading: true, error: null }));
+      setLoading(true);
+      setError(null);
 
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) throw error;
-      return data;
-    } catch (error) {
-      console.error('Erro no login:', error);
-      setAuthState(prev => ({
-        ...prev,
-        loading: false,
-        error: error instanceof Error ? error.message : 'Erro no login',
-      }));
-      throw error;
+    } catch (err) {
+      setError(handleSupabaseError(err));
+      throw err;
+    } finally {
+      setLoading(false);
     }
   };
 
   const signOut = async () => {
     try {
+      setLoading(true);
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-    } catch (error) {
-      console.error('Erro no logout:', error);
-      throw error;
+      setUser(null);
+    } catch (err) {
+      setError(handleSupabaseError(err));
+      throw err;
+    } finally {
+      setLoading(false);
     }
   };
 
-  const updateProfile = async (updates: Partial<UserProfile>) => {
+  const updateProfile = async (updates: Partial<User>) => {
     try {
-      if (!authState.user) throw new Error('Usuário não autenticado');
+      if (!user) throw new Error('No user logged in');
 
-      const updatedProfile = await UserService.updateProfile(authState.user.id, updates);
-      
-      setAuthState(prev => ({
-        ...prev,
-        profile: updatedProfile,
-      }));
+      const { data, error } = await supabase
+        .from('users')
+        .update(updates)
+        .eq('id', user.id)
+        .select()
+        .single();
 
-      return updatedProfile;
-    } catch (error) {
-      console.error('Erro ao atualizar perfil:', error);
-      throw error;
+      if (error) throw error;
+      setUser(data);
+    } catch (err) {
+      setError(handleSupabaseError(err));
+      throw err;
     }
   };
 
-  const updatePlan = async (plano: 'economico' | 'padrao' | 'premium') => {
-    try {
-      if (!authState.user) throw new Error('Usuário não autenticado');
-
-      const updatedProfile = await UserService.updatePlan(authState.user.id, plano);
-      
-      setAuthState(prev => ({
-        ...prev,
-        profile: updatedProfile,
-      }));
-
-      return updatedProfile;
-    } catch (error) {
-      console.error('Erro ao atualizar plano:', error);
-      throw error;
-    }
-  };
+  const clearError = () => setError(null);
 
   return {
-    ...authState,
+    user,
+    loading,
+    error,
     signUp,
     signIn,
     signOut,
     updateProfile,
-    updatePlan,
-    isAuthenticated: !!authState.user,
-    hasProfile: !!authState.profile,
-    hasPlan: !!authState.profile?.plano,
+    clearError,
   };
+};
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const auth = useAuthProvider();
+  return <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>;
 };

@@ -1,146 +1,55 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AuthProvider } from './hooks/useAuth';
 import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
-import { RafflePage } from './pages/RafflePage';
+import { CampanhasPage } from './pages/CampanhasPage';
+import { RifaPage } from './pages/RifaPage';
 import { DashboardPage } from './pages/DashboardPage';
-import { CreateRafflePage } from './pages/CreateRafflePage';
-import { CreateCampaignPage } from './pages/CreateCampaignPage';
-import { RafflesPage } from './pages/RafflesPage';
-import { CampaignsPage } from './pages/CampaignsPage';
-import { CampaignPage } from './pages/CampaignPage';
-import { AboutPage } from './pages/AboutPage';
-import { FAQPage } from './pages/FAQPage';
-import { PricingPage } from './pages/PricingPage';
-import { ContactPage } from './pages/ContactPage';
-import { AdminPurchasesPage } from './pages/AdminPurchasesPage';
-import { hasActivePlan } from './services/authService';
-
-// Protected route wrapper
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, isLoading } = useAuth();
-  
-  if (isLoading) {
-    return <div className="flex items-center justify-center min-h-screen">Carregando...</div>;
-  }
-  
-  if (!isAuthenticated) {
-    return <Navigate to="/login" />;
-  }
-  
-  return <>{children}</>;
-};
-
-// Plan required route wrapper
-const PlanRequiredRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, user, isLoading } = useAuth();
-  
-  if (isLoading) {
-    return <div className="flex items-center justify-center min-h-screen">Carregando...</div>;
-  }
-  
-  if (!isAuthenticated) {
-    return <Navigate to="/login" />;
-  }
-  
-  if (!user || (!hasActivePlan(user) && user.role !== 'admin')) {
-    return <Navigate to="/precos" />;
-  }
-  
-  return <>{children}</>;
-};
 
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Public routes */}
-          <Route path="/" element={<HomePage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/rifas" element={<RafflesPage />} />
-          <Route path="/rifas/:id" element={<RafflePage />} />
-          <Route path="/campanhas" element={<CampaignsPage />} />
-          <Route path="/campanhas/:id" element={<CampaignPage />} />
-          <Route path="/sobre" element={<AboutPage />} />
-          <Route path="/faq" element={<FAQPage />} />
-          <Route path="/precos" element={<PricingPage />} />
-          <Route path="/contato" element={<ContactPage />} />
+      <Router>
+        <div className="App">
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/campanhas" element={<CampanhasPage />} />
+            <Route path="/rifas/:id" element={<RifaPage />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
+          </Routes>
           
-          {/* Protected routes */}
-          <Route 
-            path="/dashboard/*" 
-            element={
-              <ProtectedRoute>
-                <DashboardPage />
-              </ProtectedRoute>
-            } 
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: '#fff',
+                color: '#363636',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                borderRadius: '8px',
+                padding: '16px',
+              },
+              success: {
+                iconTheme: {
+                  primary: '#10B981',
+                  secondary: '#fff',
+                },
+              },
+              error: {
+                iconTheme: {
+                  primary: '#EF4444',
+                  secondary: '#fff',
+                },
+              },
+            }}
           />
-
-          {/* Admin routes */}
-          <Route 
-            path="/admin/compras" 
-            element={
-              <ProtectedRoute>
-                <AdminPurchasesPage />
-              </ProtectedRoute>
-            } 
-          />
-          
-          {/* Plan required routes */}
-          <Route 
-            path="/criar-rifa" 
-            element={
-              <PlanRequiredRoute>
-                <CreateRafflePage />
-              </PlanRequiredRoute>
-            } 
-          />
-          
-          <Route 
-            path="/criar-campanha" 
-            element={
-              <PlanRequiredRoute>
-                <CreateCampaignPage />
-              </PlanRequiredRoute>
-            } 
-          />
-          
-          {/* Fallback route */}
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
-      </BrowserRouter>
-      
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          duration: 5000,
-          style: {
-            background: '#fff',
-            color: '#363636',
-            boxShadow: '0 3px 10px rgba(0, 0, 0, 0.1)',
-            borderRadius: '8px',
-            padding: '16px',
-          },
-          success: {
-            iconTheme: {
-              primary: '#10B981',
-              secondary: '#fff',
-            },
-          },
-          error: {
-            iconTheme: {
-              primary: '#EF4444',
-              secondary: '#fff',
-            },
-          },
-        }}
-      />
+        </div>
+      </Router>
     </AuthProvider>
   );
 }
