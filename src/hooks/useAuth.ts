@@ -29,7 +29,13 @@ export const useAuth = () => {
         
         if (error) {
           console.error('Erro ao verificar sessão:', error);
-          throw error;
+          setAuthState({
+            user: null,
+            profile: null,
+            loading: false,
+            error: 'Erro ao verificar sessão',
+          });
+          return;
         }
 
         if (session?.user) {
@@ -265,14 +271,6 @@ export const useAuth = () => {
     }
   };
 
-  // Função de login para compatibilidade
-  const login = signIn;
-
-  // Função de register para compatibilidade
-  const register = async (name: string, email: string, password: string) => {
-    return signUp(email, password, { nome: name });
-  };
-
   return {
     ...authState,
     signUp,
@@ -280,12 +278,9 @@ export const useAuth = () => {
     signOut,
     updateProfile,
     updatePlan,
-    login, // Alias para signIn
-    register, // Alias para signUp
     isAuthenticated: !!authState.user,
     hasProfile: !!authState.profile,
     hasPlan: !!authState.profile?.plano,
-    // Compatibilidade com o código existente
     isLoading: authState.loading,
     user: authState.user,
     error: authState.error,
