@@ -1,159 +1,447 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { Ticket, Star, Users, Shield, ArrowRight } from 'lucide-react';
-import { Layout } from '../components/layout/Layout';
-import { Button } from '../components/ui/Button';
-import { Card } from '../components/ui/Card';
-import { useCampanhasPublicas } from '../hooks/useCampanhas';
-import { formatCurrency } from '../lib/utils';
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import { Ticket, Users, Zap, Shield, ArrowRight, Search, Megaphone } from "lucide-react";
+import { Layout } from "../components/layout/Layout";
+import { Button } from "../components/ui/Button";
+import { RaffleCard } from "../components/RaffleCard";
+import { CampaignCard } from "../components/campaigns/CampaignCard";
+import { PricingSection } from "../components/pricing/PricingSection";
+import { AboutSection } from "../components/about/AboutSection";
+import { Raffle, Campaign } from "../types";
+import { getRaffles } from "../services/raffleService";
+import { getCampaigns } from "../services/campaignService";
+import { useAuth } from "../contexts/AuthContext";
+import { hasActivePlan } from "../services/authService";
+import Img from "../assets/c0b098c0-29eb-447e-b616-1fdf7002095e.png";
 
 export const HomePage: React.FC = () => {
-  const { campanhas, loading } = useCampanhasPublicas();
+  const navigate = useNavigate();
+  const { isAuthenticated, user } = useAuth();
+  const [activeRaffles, setActiveRaffles] = useState<Raffle[]>([]);
+  const [activeCampaigns, setActiveCampaigns] = useState<Campaign[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const featuredCampanhas = campanhas.filter(c => c.destaque).slice(0, 3);
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [raffles, campaigns] = await Promise.all([
+          getRaffles(),
+          getCampaigns(),
+        ]);
+        
+        // Show all active raffles (including newly created ones)
+        setActiveRaffles(
+          raffles.filter((raffle) => raffle.status === "active").slice(0, 6)
+        );
+        
+        // Show all active campaigns (including newly created ones)
+        setActiveCampaigns(
+          campaigns.filter((campaign) => campaign.status === "active").slice(0, 6)
+        );
+      } catch (error) {
+        console.error("Failed to fetch data", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+
+    // Set up periodic refresh to show new content
+    const interval = setInterval(fetchData, 30000); // Refresh every 30 seconds
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleCreateRaffle = () => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    
+    if (!user || (!hasActivePlan(user) && user.role !== 'admin')) {
+      navigate('/precos');
+      return;
+    }
+    
+    navigate('/criar-rifa');
+  };
+
+  const handleCreateCampaign = () => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    if (user?.role !== 'admin') {
+      navigate('/dashboard');
+      return;
+    }
+    navigate('/criar-campanha');
+  };
+
+  const scrollToSection = (id: string) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth" });
+    }
+  };
 
   return (
     <Layout>
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-blue-600 to-blue-800 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-          <div className="text-center">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6">
-              Transforme sua sorte em
-              <span className="text-yellow-400"> grandes conquistas</span>
-            </h1>
-            <p className="text-xl md:text-2xl mb-8 text-blue-100 max-w-3xl mx-auto">
-              Participe de rifas e campanhas online de forma segura e confiável. 
-              Ganhe prêmios incríveis ou crie sua própria campanha.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link to="/campanhas">
-                <Button size="lg" className="bg-yellow-500 text-blue-900 hover:bg-yellow-400">
-                  Ver Campanhas
-                  <ArrowRight className="ml-2 h-5 w-5" />
+      <section className="bg-primary-500 text-white pt-16 pb-24 md:pt-20 md:pb-32">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col md:flex-row items-center">
+            <motion.div
+              className="md:w-1/2 mb-8 md:mb-0"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <h1 className="font-display font-bold text-3xl md:text-4xl lg:text-5xl mb-4 leading-tight">
+                Transformando sua sorte em grandes conquistas
+              </h1>
+              <p className="text-lg mb-6 text-primary-100 max-w-xl">
+                Participe de rifas e campanhas online de forma segura e confiável. 
+                Ganhe prêmios incríveis ou crie sua própria campanha.
+              </p>
+              <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
+                <Button
+                  size="lg"
+                  variant="secondary"
+                  rightIcon={<ArrowRight size={16} />}
+                  onClick={() => navigate('/rifas')}
+                >
+                  Ver Rifas Disponíveis
                 </Button>
-              </Link>
-              <Link to="/register">
-                <Button variant="outline" size="lg" className="border-white text-white hover:bg-white hover:text-blue-600">
-                  Criar Conta
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="border-white text-white hover:bg-white hover:text-primary-500"
+                  onClick={handleCreateRaffle}
+                >
+                  Criar Minha Rifa
                 </Button>
-              </Link>
-            </div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              className="md:w-1/2 flex justify-center"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              <img
+                src={Img}
+                alt="Prêmios de rifa"
+                className="rounded-lg shadow-xl max-w-full h-auto"
+                style={{ maxHeight: "400px" }}
+              />
+            </motion.div>
           </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+      <section className="py-16 bg-white">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="font-display font-bold text-2xl md:text-3xl text-gray-900 mb-4">
               Por que escolher a Rifativa?
             </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              A plataforma mais segura e confiável para rifas online
+            <p className="text-gray-600 max-w-2xl mx-auto">
+              A melhor plataforma para criação e participação em rifas e campanhas online
+              com segurança, transparência e facilidade.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            <Card className="text-center">
-              <Shield className="h-12 w-12 text-blue-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold mb-2">100% Seguro</h3>
-              <p className="text-gray-600">
-                Plataforma com criptografia de ponta e políticas rígidas de proteção
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <motion.div
+              className="bg-white p-6 rounded-lg shadow-soft hover:shadow-card transition-shadow duration-300"
+              whileHover={{ y: -5 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.1 }}
+            >
+              <div className="w-12 h-12 bg-primary-50 rounded-full flex items-center justify-center text-primary-500 mb-4">
+                <Shield size={24} />
+              </div>
+              <h3 className="font-display font-semibold text-lg text-gray-900 mb-2">
+                100% Seguro
+              </h3>
+              <p className="text-gray-600 text-sm">
+                Plataforma com criptografia de ponta a ponta e políticas rígidas
+                de proteção ao usuário.
               </p>
-            </Card>
+            </motion.div>
 
-            <Card className="text-center">
-              <Users className="h-12 w-12 text-blue-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold mb-2">Comunidade Confiável</h3>
-              <p className="text-gray-600">
-                Milhares de usuários satisfeitos e campanhas bem-sucedidas
+            <motion.div
+              className="bg-white p-6 rounded-lg shadow-soft hover:shadow-card transition-shadow duration-300"
+              whileHover={{ y: -5 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.2 }}
+            >
+              <div className="w-12 h-12 bg-primary-50 rounded-full flex items-center justify-center text-primary-500 mb-4">
+                <Zap size={24} />
+              </div>
+              <h3 className="font-display font-semibold text-lg text-gray-900 mb-2">
+                Rápido & Fácil
+              </h3>
+              <p className="text-gray-600 text-sm">
+                Crie ou participe de rifas em minutos, com interface intuitiva e
+                pagamentos instantâneos.
               </p>
-            </Card>
+            </motion.div>
 
-            <Card className="text-center">
-              <Ticket className="h-12 w-12 text-blue-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold mb-2">Sorteios Verificados</h3>
-              <p className="text-gray-600">
-                Sorteios transparentes com números aleatórios verificáveis
+            <motion.div
+              className="bg-white p-6 rounded-lg shadow-soft hover:shadow-card transition-shadow duration-300"
+              whileHover={{ y: -5 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.3 }}
+            >
+              <div className="w-12 h-12 bg-primary-50 rounded-full flex items-center justify-center text-primary-500 mb-4">
+                <Ticket size={24} />
+              </div>
+              <h3 className="font-display font-semibold text-lg text-gray-900 mb-2">
+                Sorteios Verificados
+              </h3>
+              <p className="text-gray-600 text-sm">
+                Sorteios baseados em loterias oficiais ou algoritmos
+                verificáveis para máxima transparência.
               </p>
-            </Card>
+            </motion.div>
+
+            <motion.div
+              className="bg-white p-6 rounded-lg shadow-soft hover:shadow-card transition-shadow duration-300"
+              whileHover={{ y: -5 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.4 }}
+            >
+              <div className="w-12 h-12 bg-primary-50 rounded-full flex items-center justify-center text-primary-500 mb-4">
+                <Users size={24} />
+              </div>
+              <h3 className="font-display font-semibold text-lg text-gray-900 mb-2">
+                Comunidade Confiável
+              </h3>
+              <p className="text-gray-600 text-sm">
+                Milhares de usuários satisfeitos e campanhas bem-sucedidas em
+                nossa plataforma.
+              </p>
+            </motion.div>
           </div>
         </div>
       </section>
 
-      {/* Featured Campaigns */}
-      {featuredCampanhas.length > 0 && (
-        <section className="py-20 bg-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-                Campanhas em Destaque
+      {/* About Section */}
+      <AboutSection />
+
+      {/* Pricing Section */}
+      <PricingSection />
+
+      {/* Active Raffles Section */}
+      <section className="py-16 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col md:flex-row justify-between items-center mb-8">
+            <div>
+              <h2 className="font-display font-bold text-2xl md:text-3xl text-gray-900 mb-2">
+                Rifas em Destaque
               </h2>
-              <p className="text-xl text-gray-600">
-                Confira as campanhas mais populares do momento
+              <p className="text-gray-600">
+                Confira as rifas mais populares do momento
               </p>
             </div>
-
-            <div className="grid md:grid-cols-3 gap-8">
-              {featuredCampanhas.map((campanha) => (
-                <Card key={campanha.id} padding={false} className="overflow-hidden hover:shadow-lg transition-shadow">
-                  {campanha.imagem_url && (
-                    <img 
-                      src={campanha.imagem_url} 
-                      alt={campanha.nome}
-                      className="w-full h-48 object-cover"
-                    />
-                  )}
-                  <div className="p-6">
-                    <div className="flex items-center mb-2">
-                      <Star className="h-4 w-4 text-yellow-500 mr-1" />
-                      <span className="text-sm text-yellow-600 font-medium">Destaque</span>
-                    </div>
-                    <h3 className="text-xl font-semibold mb-2">{campanha.nome}</h3>
-                    <p className="text-gray-600 mb-4 line-clamp-2">{campanha.descricao}</p>
-                    <div className="flex justify-between items-center mb-4">
-                      <span className="text-sm text-gray-500">A partir de</span>
-                      <span className="text-lg font-bold text-blue-600">
-                        {formatCurrency(campanha.preco_bilhete)}
-                      </span>
-                    </div>
-                    <Link to={`/campanhas/${campanha.id}`}>
-                      <Button className="w-full">Ver Detalhes</Button>
-                    </Link>
-                  </div>
-                </Card>
-              ))}
-            </div>
-
-            <div className="text-center mt-12">
-              <Link to="/campanhas">
-                <Button variant="outline" size="lg">
-                  Ver Todas as Campanhas
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-              </Link>
+            <div className="mt-4 md:mt-0">
+              <Button
+                variant="outline"
+                rightIcon={<ArrowRight size={16} />}
+                onClick={() => navigate('/rifas')}
+              >
+                Ver Todas as Rifas
+              </Button>
             </div>
           </div>
-        </section>
-      )}
+
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-pulse">
+              {[1, 2, 3].map((item) => (
+                <div
+                  key={item}
+                  className="bg-white rounded-lg overflow-hidden shadow-card"
+                >
+                  <div className="h-48 bg-gray-300"></div>
+                  <div className="p-4">
+                    <div className="h-6 bg-gray-300 rounded mb-3"></div>
+                    <div className="h-16 bg-gray-200 rounded mb-3"></div>
+                    <div className="h-10 bg-gray-300 rounded"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : activeRaffles.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {activeRaffles.map((raffle) => (
+                <motion.div
+                  key={raffle.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <RaffleCard raffle={raffle} />
+                </motion.div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <Ticket size={48} className="mx-auto text-gray-400 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Nenhuma rifa ativa no momento
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Seja o primeiro a criar uma rifa!
+              </p>
+              <Button onClick={handleCreateRaffle}>
+                Criar Primeira Rifa
+              </Button>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Active Campaigns Section */}
+      <section className="py-16 bg-white">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col md:flex-row justify-between items-center mb-8">
+            <div>
+              <h2 className="font-display font-bold text-2xl md:text-3xl text-gray-900 mb-2">
+                Campanhas Especiais
+              </h2>
+              <p className="text-gray-600">
+                Participe das nossas campanhas promocionais exclusivas
+              </p>
+            </div>
+            <div className="mt-4 md:mt-0">
+              <Button
+                variant="outline"
+                rightIcon={<ArrowRight size={16} />}
+                onClick={() => navigate('/campanhas')}
+              >
+                Ver Todas as Campanhas
+              </Button>
+            </div>
+          </div>
+
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-pulse">
+              {[1, 2, 3].map((item) => (
+                <div
+                  key={item}
+                  className="bg-white rounded-lg overflow-hidden shadow-card"
+                >
+                  <div className="h-48 bg-gray-300"></div>
+                  <div className="p-4">
+                    <div className="h-6 bg-gray-300 rounded mb-3"></div>
+                    <div className="h-16 bg-gray-200 rounded mb-3"></div>
+                    <div className="h-10 bg-gray-300 rounded"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : activeCampaigns.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {activeCampaigns.map((campaign) => (
+                <motion.div
+                  key={campaign.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <CampaignCard campaign={campaign} />
+                </motion.div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <Megaphone size={48} className="mx-auto text-gray-400 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Nenhuma campanha ativa no momento
+              </h3>
+              <p className="text-gray-600 mb-6">
+                {user?.role === 'admin' ? 'Crie a primeira campanha!' : 'Aguarde novas campanhas!'}
+              </p>
+              {user?.role === 'admin' && (
+                <Button onClick={handleCreateCampaign}>
+                  Criar Primeira Campanha
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      </section>
 
       {/* CTA Section */}
-      <section className="bg-gray-900 text-white py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-6">
-            Pronto para começar?
+      <section className="py-16 bg-primary-500 text-white">
+        <div className="container mx-auto px-4 text-center">
+          <h2 className="font-display font-bold text-2xl md:text-3xl mb-6">
+            Pronto para criar sua própria campanha?
           </h2>
-          <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
-            Crie sua conta e comece a participar das melhores rifas e campanhas online
+          <p className="text-primary-100 mb-8 max-w-2xl mx-auto">
+            Crie uma rifa para seu produto ou uma campanha promocional especial. 
+            É rápido, fácil e seguro!
           </p>
-          <Link to="/register">
-            <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
-              Criar Conta Grátis
-              <ArrowRight className="ml-2 h-5 w-5" />
+          <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 justify-center">
+            <Button size="lg" variant="secondary" onClick={handleCreateRaffle}>
+              Criar Minha Rifa
             </Button>
-          </Link>
+            {user?.role === 'admin' && (
+              <Button 
+                size="lg" 
+                variant="outline"
+                className="border-white text-white hover:bg-white hover:text-primary-500"
+                leftIcon={<Megaphone size={16} />}
+                onClick={handleCreateCampaign}
+              >
+                Criar Campanha
+              </Button>
+            )}
+            <button
+              onClick={() => scrollToSection("sobre-nos")}
+              className="inline-flex items-center justify-center px-6 py-3 border-2 border-white text-white hover:bg-white hover:text-primary-500 font-medium rounded-md transition-colors duration-200"
+            >
+              Como Funciona
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* Search Banner */}
+      <section className="py-14 bg-gray-100">
+        <div className="container mx-auto px-4">
+          <div className="bg-white shadow-card rounded-lg p-6 flex flex-col md:flex-row items-center justify-between">
+            <div className="mb-4 md:mb-0 md:mr-8">
+              <h3 className="font-display font-semibold text-xl text-gray-900 mb-2">
+                Procurando algo específico?
+              </h3>
+              <p className="text-gray-600">
+                Use nossa busca para encontrar rifas e campanhas do seu interesse.
+              </p>
+            </div>
+            <div className="w-full md:w-1/2 lg:w-1/3">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Buscar rifas e campanhas..."
+                  className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                />
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                  <Search className="h-5 w-5 text-gray-400" />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
     </Layout>

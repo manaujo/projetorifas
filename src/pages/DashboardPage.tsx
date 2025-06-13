@@ -1,318 +1,625 @@
-import React, { useState } from 'react';
-import { Plus, BarChart3, Settings, Ticket, Users, DollarSign } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { format } from 'date-fns';
+import { LayoutGrid, Ticket, Settings, PlusCircle, CreditCard, Users, Award, Megaphone } from 'lucide-react';
 import { Layout } from '../components/layout/Layout';
-import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { ProtectedRoute } from '../components/ProtectedRoute';
-import { useAuth } from '../hooks/useAuth';
-import { useCampanhas } from '../hooks/useCampanhas';
-import { useRifas } from '../hooks/useRifas';
-import { formatCurrency, formatDate } from '../lib/utils';
+import { RaffleCard } from '../components/RaffleCard';
+import { CampaignCard } from '../components/campaigns/CampaignCard';
+import { ShareModal } from '../components/ShareModal';
+import { Raffle, Campaign, Ticket as TicketType } from '../types';
+import { useAuth } from '../contexts/AuthContext';
+import { getUserRaffles, getUserTickets, getRaffleById } from '../services/raffleService';
+import { getCampaigns } from '../services/campaignService';
 
 export const DashboardPage: React.FC = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
-  const { campanhas } = useCampanhas();
-  const { rifas } = useRifas();
-  const [activeTab, setActiveTab] = useState<'overview' | 'campanhas' | 'rifas' | 'vendas'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'myRaffles' | 'myCampaigns' | 'myTickets' | 'account'>('overview');
+  const [userRaffles, setUserRaffles] = useState<Raffle[]>([]);
+  const [userCampaigns, setUserCampaigns] = useState<Campaign[]>([]);
+  const [userTickets, setUserTickets] = useState<(TicketType & { raffle: Raffle | null })[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
-  const totalCampanhas = campanhas.length;
-  const totalRifas = rifas.length;
-  const totalArrecadado = [...campanhas, ...rifas].reduce((total, item) => total + (item.total_arrecadado || 0), 0);
-  const totalBilhetesVendidos = [...campanhas, ...rifas].reduce((total, item) => total + (item.bilhetes_vendidos || 0), 0);
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (!user) return;
+      
+      try {
+        setIsLoading(true);
+        
+        const raffles = await getUserRaffles(user.id);
+        setUserRaffles(raffles);
+        
+        // Fetch campaigns if user is admin
+        if (user.role === 'admin') {
+          const campaigns = await getCampaigns();
+          setUserCampaigns(campaigns.filter(c => c.createdBy === user.id));
+        }
+        
+        const tickets = await getUserTickets(user.id);
+        
+        const ticketsWithRaffles = await Promise.all(
+          tickets.map(async (ticket) => {
+            const raffle = await getRaffleById(ticket.raffleId);
+            return { ...ticket, raffle };
+          })
+        );
+        
+        setUserTickets(ticketsWithRaffles);
+      } catch (error) {
+        console.error('Failed to fetch user data', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchUserData();
+  }, [user]);
+
+  if (!user) {
+    return null;
+  }
+
+  const handleCreateRaffle = () => {
+    navigate('/criar-rifa');
+  };
+
+  const handleCreateCampaign = () => {
+    navigate('/criar-campanha');
+  };
+
+  const handleBrowseRaffles = () => {
+    navigate('/rifas');
+  };
+
+  const handleInviteFriends = () => {
+    setIsShareModalOpen(true);
+  };
 
   return (
-    <ProtectedRoute>
-      <Layout>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-            <p className="text-gray-600">Bem-vindo, {user?.nome}</p>
-          </div>
-
-          {/* Stats Cards */}
-          <div className="grid md:grid-cols-4 gap-6 mb-8">
-            <Card>
-              <div className="flex items-center">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <BarChart3 className="h-6 w-6 text-blue-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm text-gray-600">Total Arrecadado</p>
-                  <p className="text-2xl font-bold text-gray-900">{formatCurrency(totalArrecadado)}</p>
-                </div>
-              </div>
-            </Card>
-
-            <Card>
-              <div className="flex items-center">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <Ticket className="h-6 w-6 text-green-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm text-gray-600">Bilhetes Vendidos</p>
-                  <p className="text-2xl font-bold text-gray-900">{totalBilhetesVendidos}</p>
-                </div>
-              </div>
-            </Card>
-
-            <Card>
-              <div className="flex items-center">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <Users className="h-6 w-6 text-purple-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm text-gray-600">Campanhas</p>
-                  <p className="text-2xl font-bold text-gray-900">{totalCampanhas}</p>
-                </div>
-              </div>
-            </Card>
-
-            <Card>
-              <div className="flex items-center">
-                <div className="p-2 bg-yellow-100 rounded-lg">
-                  <DollarSign className="h-6 w-6 text-yellow-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm text-gray-600">Rifas</p>
-                  <p className="text-2xl font-bold text-gray-900">{totalRifas}</p>
-                </div>
-              </div>
-            </Card>
-          </div>
-
-          {/* Navigation Tabs */}
-          <div className="border-b border-gray-200 mb-8">
-            <nav className="-mb-px flex space-x-8">
-              {[
-                { id: 'overview', label: 'Visão Geral' },
-                { id: 'campanhas', label: 'Campanhas' },
-                { id: 'rifas', label: 'Rifas' },
-                { id: 'vendas', label: 'Vendas' },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === tab.id
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </nav>
-          </div>
-
-          {/* Tab Content */}
-          {activeTab === 'overview' && (
-            <div className="grid lg:grid-cols-2 gap-8">
-              {/* Recent Campanhas */}
-              <Card>
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold">Campanhas Recentes</h3>
-                  <Button size="sm">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Nova Campanha
-                  </Button>
-                </div>
-                <div className="space-y-3">
-                  {campanhas.slice(0, 5).map((campanha) => (
-                    <div key={campanha.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                      <div>
-                        <p className="font-medium">{campanha.nome}</p>
-                        <p className="text-sm text-gray-600">{formatDate(campanha.created_at)}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium">{formatCurrency(campanha.total_arrecadado || 0)}</p>
-                        <p className="text-sm text-gray-600">{campanha.bilhetes_vendidos || 0} bilhetes</p>
-                      </div>
-                    </div>
-                  ))}
-                  {campanhas.length === 0 && (
-                    <p className="text-gray-500 text-center py-4">Nenhuma campanha criada</p>
-                  )}
-                </div>
-              </Card>
-
-              {/* Recent Rifas */}
-              <Card>
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold">Rifas Recentes</h3>
-                  <Button size="sm">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Nova Rifa
-                  </Button>
-                </div>
-                <div className="space-y-3">
-                  {rifas.slice(0, 5).map((rifa) => (
-                    <div key={rifa.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                      <div>
-                        <p className="font-medium">{rifa.nome}</p>
-                        <p className="text-sm text-gray-600">{formatDate(rifa.created_at)}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium">{formatCurrency(rifa.total_arrecadado || 0)}</p>
-                        <p className="text-sm text-gray-600">{rifa.bilhetes_vendidos || 0} bilhetes</p>
-                      </div>
-                    </div>
-                  ))}
-                  {rifas.length === 0 && (
-                    <p className="text-gray-500 text-center py-4">Nenhuma rifa criada</p>
-                  )}
-                </div>
-              </Card>
-            </div>
-          )}
-
-          {activeTab === 'campanhas' && (
-            <Card>
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-semibold">Minhas Campanhas</h3>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Nova Campanha
-                </Button>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Nome
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Bilhetes Vendidos
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Arrecadado
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Ações
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {campanhas.map((campanha) => (
-                      <tr key={campanha.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">{campanha.nome}</div>
-                            <div className="text-sm text-gray-500">{formatDate(campanha.created_at)}</div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            campanha.status === 'ativa' 
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-gray-100 text-gray-800'
-                          }`}>
-                            {campanha.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {campanha.bilhetes_vendidos || 0}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {formatCurrency(campanha.total_arrecadado || 0)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <Button variant="outline" size="sm">
-                            <Settings className="h-4 w-4 mr-1" />
-                            Gerenciar
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {campanhas.length === 0 && (
-                  <div className="text-center py-8">
-                    <p className="text-gray-500">Nenhuma campanha criada ainda</p>
-                  </div>
-                )}
-              </div>
-            </Card>
-          )}
-
-          {activeTab === 'rifas' && (
-            <Card>
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-semibold">Minhas Rifas</h3>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Nova Rifa
-                </Button>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Nome
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Bilhetes Vendidos
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Arrecadado
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Ações
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {rifas.map((rifa) => (
-                      <tr key={rifa.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">{rifa.nome}</div>
-                            <div className="text-sm text-gray-500">{formatDate(rifa.created_at)}</div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            rifa.status === 'ativa' 
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-gray-100 text-gray-800'
-                          }`}>
-                            {rifa.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {rifa.bilhetes_vendidos || 0}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {formatCurrency(rifa.total_arrecadado || 0)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <Button variant="outline" size="sm">
-                            <Settings className="h-4 w-4 mr-1" />
-                            Gerenciar
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {rifas.length === 0 && (
-                  <div className="text-center py-8">
-                    <p className="text-gray-500">Nenhuma rifa criada ainda</p>
-                  </div>
-                )}
-              </div>
-            </Card>
-          )}
+    <Layout>
+      <div className="container mx-auto px-4 py-8">
+        <div className="mb-8">
+          <h1 className="font-display font-bold text-2xl md:text-3xl text-gray-900 mb-2">
+            Painel de Controle
+          </h1>
+          <p className="text-gray-600">
+            Bem-vindo(a), {user.name}. Gerencie suas rifas, campanhas e participações.
+          </p>
         </div>
-      </Layout>
-    </ProtectedRoute>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Sidebar */}
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-lg shadow-card overflow-hidden">
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center">
+                  <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center text-primary-500 mr-4">
+                    {user.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <h2 className="font-medium text-base text-gray-900">
+                      {user.name}
+                    </h2>
+                    <p className="text-sm text-gray-500">{user.email}</p>
+                  </div>
+                </div>
+                {user.role === 'admin' && (
+                  <span className="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
+                    Administrador
+                  </span>
+                )}
+              </div>
+              
+              <nav className="py-2">
+                <button
+                  className={`w-full flex items-center px-6 py-3 text-left ${
+                    activeTab === 'overview'
+                      ? 'bg-primary-50 text-primary-600 border-l-4 border-primary-500'
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                  onClick={() => setActiveTab('overview')}
+                >
+                  <LayoutGrid size={18} className="mr-3" />
+                  <span className="text-sm font-medium">Visão Geral</span>
+                </button>
+                
+                <button
+                  className={`w-full flex items-center px-6 py-3 text-left ${
+                    activeTab === 'myRaffles'
+                      ? 'bg-primary-50 text-primary-600 border-l-4 border-primary-500'
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                  onClick={() => setActiveTab('myRaffles')}
+                >
+                  <Award size={18} className="mr-3" />
+                  <span className="text-sm font-medium">Minhas Rifas</span>
+                </button>
+
+                {user.role === 'admin' && (
+                  <button
+                    className={`w-full flex items-center px-6 py-3 text-left ${
+                      activeTab === 'myCampaigns'
+                        ? 'bg-primary-50 text-primary-600 border-l-4 border-primary-500'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                    onClick={() => setActiveTab('myCampaigns')}
+                  >
+                    <Megaphone size={18} className="mr-3" />
+                    <span className="text-sm font-medium">Minhas Campanhas</span>
+                  </button>
+                )}
+                
+                <button
+                  className={`w-full flex items-center px-6 py-3 text-left ${
+                    activeTab === 'myTickets'
+                      ? 'bg-primary-50 text-primary-600 border-l-4 border-primary-500'
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                  onClick={() => setActiveTab('myTickets')}
+                >
+                  <Ticket size={18} className="mr-3" />
+                  <span className="text-sm font-medium">Meus Bilhetes</span>
+                </button>
+                
+                <button
+                  className={`w-full flex items-center px-6 py-3 text-left ${
+                    activeTab === 'account'
+                      ? 'bg-primary-50 text-primary-600 border-l-4 border-primary-500'
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                  onClick={() => setActiveTab('account')}
+                >
+                  <Settings size={18} className="mr-3" />
+                  <span className="text-sm font-medium">Configurações</span>
+                </button>
+              </nav>
+            </div>
+          </div>
+          
+          {/* Main Content */}
+          <div className="lg:col-span-3">
+            {/* Overview Tab */}
+            {activeTab === 'overview' && (
+              <div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                  {/* Stats Cards */}
+                  <div className="bg-white rounded-lg shadow-card p-6">
+                    <div className="flex justify-between items-center mb-3">
+                      <h3 className="text-sm font-medium text-gray-500">
+                        Saldo Disponível
+                      </h3>
+                      <CreditCard size={18} className="text-primary-500" />
+                    </div>
+                    <p className="text-2xl font-display font-bold text-gray-900">
+                      R$ {user.balance.toFixed(2).replace('.', ',')}
+                    </p>
+                  </div>
+                  
+                  <div className="bg-white rounded-lg shadow-card p-6">
+                    <div className="flex justify-between items-center mb-3">
+                      <h3 className="text-sm font-medium text-gray-500">
+                        {user.role === 'admin' ? 'Rifas + Campanhas' : 'Rifas Criadas'}
+                      </h3>
+                      <Award size={18} className="text-primary-500" />
+                    </div>
+                    <p className="text-2xl font-display font-bold text-gray-900">
+                      {user.role === 'admin' ? userRaffles.length + userCampaigns.length : userRaffles.length}
+                    </p>
+                  </div>
+                  
+                  <div className="bg-white rounded-lg shadow-card p-6">
+                    <div className="flex justify-between items-center mb-3">
+                      <h3 className="text-sm font-medium text-gray-500">
+                        Bilhetes Comprados
+                      </h3>
+                      <Ticket size={18} className="text-primary-500" />
+                    </div>
+                    <p className="text-2xl font-display font-bold text-gray-900">
+                      {userTickets.length}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                  {/* Quick Actions */}
+                  <div className="bg-white rounded-lg shadow-card p-6">
+                    <h3 className="font-display font-semibold text-lg text-gray-900 mb-4">
+                      Ações Rápidas
+                    </h3>
+                    <div className="space-y-3">
+                      <Button 
+                        fullWidth
+                        leftIcon={<PlusCircle size={16} />}
+                        onClick={handleCreateRaffle}
+                      >
+                        Criar Nova Rifa
+                      </Button>
+                      {user.role === 'admin' && (
+                        <Button 
+                          fullWidth
+                          variant="secondary"
+                          leftIcon={<Megaphone size={16} />}
+                          onClick={handleCreateCampaign}
+                        >
+                          Criar Nova Campanha
+                        </Button>
+                      )}
+                      <Button 
+                        fullWidth
+                        variant="outline"
+                        leftIcon={<Ticket size={16} />}
+                        onClick={handleBrowseRaffles}
+                      >
+                        Participar de Rifas
+                      </Button>
+                      <Button 
+                        fullWidth
+                        variant="ghost"
+                        leftIcon={<Users size={16} />}
+                        onClick={handleInviteFriends}
+                      >
+                        Convidar Amigos
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white rounded-lg shadow-card p-6">
+                    <h3 className="font-display font-semibold text-lg text-gray-900 mb-4">
+                      Próximos Sorteios
+                    </h3>
+                    {userTickets.length > 0 ? (
+                      <div className="space-y-4">
+                        {userTickets.slice(0, 3).map(ticket => (
+                          ticket.raffle && (
+                            <div key={ticket.id} className="flex justify-between items-center">
+                              <div>
+                                <p className="font-medium text-gray-900">{ticket.raffle.title}</p>
+                                <p className="text-sm text-gray-500">
+                                  {format(new Date(ticket.raffle.drawDate), "dd/MM/yyyy")}
+                                </p>
+                              </div>
+                              <div className="text-sm bg-primary-50 text-primary-600 px-2 py-1 rounded-md">
+                                {ticket.numbers.length} {ticket.numbers.length === 1 ? 'bilhete' : 'bilhetes'}
+                              </div>
+                            </div>
+                          )
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 text-sm">
+                        Você ainda não comprou nenhum bilhete.
+                      </p>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Recent Items */}
+                {(userRaffles.length > 0 || userCampaigns.length > 0) && (
+                  <div className="mb-6">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="font-display font-semibold text-lg text-gray-900">
+                        Suas Criações Recentes
+                      </h3>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {userRaffles.slice(0, 1).map(raffle => (
+                        <RaffleCard key={raffle.id} raffle={raffle} />
+                      ))}
+                      {user.role === 'admin' && userCampaigns.slice(0, 1).map(campaign => (
+                        <CampaignCard key={campaign.id} campaign={campaign} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* My Raffles Tab */}
+            {activeTab === 'myRaffles' && (
+              <div>
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="font-display font-semibold text-xl text-gray-900">
+                    Minhas Rifas
+                  </h2>
+                  <Link to="/criar-rifa">
+                    <Button leftIcon={<PlusCircle size={16} />}>
+                      Nova Rifa
+                    </Button>
+                  </Link>
+                </div>
+                
+                {isLoading ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-pulse">
+                    {[1, 2].map((item) => (
+                      <div key={item} className="bg-white rounded-lg overflow-hidden shadow-card">
+                        <div className="h-48 bg-gray-300"></div>
+                        <div className="p-4">
+                          <div className="h-6 bg-gray-300 rounded mb-3"></div>
+                          <div className="h-16 bg-gray-200 rounded mb-3"></div>
+                          <div className="h-10 bg-gray-300 rounded"></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : userRaffles.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {userRaffles.map(raffle => (
+                      <RaffleCard key={raffle.id} raffle={raffle} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-lg shadow-card p-8 text-center">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full mx-auto flex items-center justify-center mb-4">
+                      <Award size={24} className="text-gray-400" />
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma rifa criada</h3>
+                    <p className="text-gray-600 mb-6">
+                      Você ainda não criou nenhuma rifa. Comece agora mesmo!
+                    </p>
+                    <Link to="/criar-rifa">
+                      <Button leftIcon={<PlusCircle size={16} />}>
+                        Criar Minha Primeira Rifa
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* My Campaigns Tab */}
+            {activeTab === 'myCampaigns' && user.role === 'admin' && (
+              <div>
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="font-display font-semibold text-xl text-gray-900">
+                    Minhas Campanhas
+                  </h2>
+                  <Link to="/criar-campanha">
+                    <Button leftIcon={<Megaphone size={16} />}>
+                      Nova Campanha
+                    </Button>
+                  </Link>
+                </div>
+                
+                {isLoading ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-pulse">
+                    {[1, 2].map((item) => (
+                      <div key={item} className="bg-white rounded-lg overflow-hidden shadow-card">
+                        <div className="h-48 bg-gray-300"></div>
+                        <div className="p-4">
+                          <div className="h-6 bg-gray-300 rounded mb-3"></div>
+                          <div className="h-16 bg-gray-200 rounded mb-3"></div>
+                          <div className="h-10 bg-gray-300 rounded"></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : userCampaigns.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {userCampaigns.map(campaign => (
+                      <CampaignCard key={campaign.id} campaign={campaign} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-lg shadow-card p-8 text-center">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full mx-auto flex items-center justify-center mb-4">
+                      <Megaphone size={24} className="text-gray-400" />
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma campanha criada</h3>
+                    <p className="text-gray-600 mb-6">
+                      Você ainda não criou nenhuma campanha. Comece agora mesmo!
+                    </p>
+                    <Link to="/criar-campanha">
+                      <Button leftIcon={<Megaphone size={16} />}>
+                        Criar Minha Primeira Campanha
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* My Tickets Tab */}
+            {activeTab === 'myTickets' && (
+              <div>
+                <h2 className="font-display font-semibold text-xl text-gray-900 mb-6">
+                  Meus Bilhetes
+                </h2>
+                
+                {isLoading ? (
+                  <div className="space-y-4 animate-pulse">
+                    {[1, 2, 3].map((item) => (
+                      <div key={item} className="bg-white rounded-lg overflow-hidden shadow-card p-4">
+                        <div className="h-6 bg-gray-300 rounded mb-3 w-1/2"></div>
+                        <div className="h-4 bg-gray-200 rounded mb-3 w-1/3"></div>
+                        <div className="h-8 bg-gray-300 rounded w-full"></div>
+                      </div>
+                    ))}
+                  </div>
+                ) : userTickets.length > 0 ? (
+                  <div className="space-y-4">
+                    {userTickets.map(ticket => (
+                      ticket.raffle && (
+                        <div key={ticket.id} className="bg-white rounded-lg shadow-card p-5">
+                          <div className="flex flex-col md:flex-row justify-between">
+                            <div>
+                              <h3 className="font-medium text-lg text-gray-900 mb-1">
+                                {ticket.raffle.title}
+                              </h3>
+                              <p className="text-gray-600 mb-3">
+                                Sorteio em: {format(new Date(ticket.raffle.drawDate), "dd/MM/yyyy")}
+                              </p>
+                              
+                              <div className="flex flex-wrap gap-1 mb-4">
+                                {ticket.numbers.map(num => (
+                                  <span key={num} className="bg-primary-100 text-primary-700 px-2 py-1 rounded text-xs font-medium">
+                                    {num}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                            
+                            <div className="mt-4 md:mt-0 md:ml-4 md:text-right">
+                              <p className="text-gray-500 text-sm mb-2">
+                                Status de Pagamento:
+                                <span className={`ml-1 font-medium ${
+                                  ticket.paymentStatus === 'completed' 
+                                    ? 'text-success-700' 
+                                    : ticket.paymentStatus === 'failed'
+                                      ? 'text-error-500'
+                                      : 'text-warning-500'
+                                }`}>
+                                  {ticket.paymentStatus === 'completed' 
+                                    ? 'Pago' 
+                                    : ticket.paymentStatus === 'failed' 
+                                      ? 'Falhou'
+                                      : 'Pendente'
+                                  }
+                                </span>
+                              </p>
+                              
+                              <p className="text-gray-500 text-sm mb-2">
+                                Método: {ticket.paymentMethod === 'pix' ? 'PIX' : 'Cartão de Crédito'}
+                              </p>
+                              
+                              <p className="text-gray-500 text-sm">
+                                Comprado em: {format(new Date(ticket.purchaseDate), "dd/MM/yyyy")}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="mt-4 flex justify-end">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => navigate(`/rifas/${ticket.raffleId}`)}
+                            >
+                              Ver Rifa
+                            </Button>
+                          </div>
+                        </div>
+                      )
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-lg shadow-card p-8 text-center">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full mx-auto flex items-center justify-center mb-4">
+                      <Ticket size={24} className="text-gray-400" />
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum bilhete comprado</h3>
+                    <p className="text-gray-600 mb-6">
+                      Você ainda não comprou nenhum bilhete. Participe de uma rifa!
+                    </p>
+                    <Link to="/rifas">
+                      <Button>
+                        Ver Rifas Disponíveis
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* Account Settings Tab */}
+            {activeTab === 'account' && (
+              <div className="bg-white rounded-lg shadow-card p-6">
+                <h2 className="font-display font-semibold text-xl text-gray-900 mb-6">
+                  Configurações da Conta
+                </h2>
+                
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">Informações Pessoais</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Nome
+                        </label>
+                        <input
+                          type="text"
+                          value={user.name}
+                          disabled
+                          className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Email
+                        </label>
+                        <input
+                          type="email"
+                          value={user.email}
+                          disabled
+                          className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">Alterar Senha</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Senha Atual
+                        </label>
+                        <input
+                          type="password"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Nova Senha
+                        </label>
+                        <input
+                          type="password"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-4">
+                      <Button>
+                        Salvar Alterações
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  {user.role === 'admin' && (
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-4">Configurações de Administrador</h3>
+                      <p className="text-gray-600 mb-4">
+                        Você tem privilégios de administrador nesta plataforma.
+                      </p>
+                      <div className="flex space-x-4">
+                        <Link to="/criar-campanha">
+                          <Button leftIcon={<Megaphone size={16} />}>
+                            Criar Nova Campanha
+                          </Button>
+                        </Link>
+                        <Link to="/campanhas">
+                          <Button variant="outline">
+                            Gerenciar Campanhas
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <ShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        url={window.location.origin}
+        title="Participe das melhores rifas e campanhas online na Rifativa!"
+      />
+    </Layout>
   );
 };

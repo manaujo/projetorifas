@@ -1,91 +1,182 @@
 export interface User {
   id: string;
+  name: string;
   email: string;
-  nome: string;
-  cpf?: string;
-  telefone?: string;
-  chave_pix?: string;
-  plano?: 'economico' | 'padrao' | 'premium';
-  plano_ativo: boolean;
-  created_at: string;
-  updated_at: string;
+  role: 'admin' | 'user';
+  createdAt: string;
+  balance: number;
+  pixKey?: string;
+  plan?: 'free' | 'basic' | 'premium';
+  planExpiresAt?: string;
 }
 
-export interface Plano {
+export interface Raffle {
   id: string;
-  nome: string;
-  preco: number;
-  max_rifas: number;
-  max_campanhas: number;
-  max_bilhetes: number;
+  title: string;
+  description: string;
+  price: number;
+  totalNumbers: number;
+  imageUrl: string;
+  drawDate: string;
+  status: 'draft' | 'active' | 'completed' | 'cancelled';
+  createdBy: string;
+  createdAt: string;
+  isCharity: boolean;
+  soldNumbers: number[];
+  pixKey?: string;
 }
 
-export interface Campanha {
+export interface Ticket {
   id: string;
-  user_id: string;
-  nome: string;
-  descricao: string;
-  imagem_url?: string;
-  destaque: boolean;
-  preco_bilhete: number;
-  status: 'ativa' | 'finalizada' | 'pausada';
-  created_at: string;
-  updated_at: string;
-  rifas?: Rifa[];
-  total_bilhetes?: number;
-  bilhetes_vendidos?: number;
-  total_arrecadado?: number;
+  raffleId: string;
+  userId?: string;
+  numbers: number[];
+  purchaseDate: string;
+  paymentStatus: 'pending' | 'completed' | 'failed';
+  paymentMethod: 'pix' | 'credit_card';
+  buyerInfo?: {
+    name: string;
+    cpf: string;
+    phone: string;
+  };
 }
 
-export interface Rifa {
-  id: string;
-  campanha_id?: string;
-  user_id: string;
-  nome: string;
-  descricao: string;
-  valor_bilhete: number;
-  qtd_bilhetes: number;
-  imagem_url?: string;
-  bilhete_premiado: number;
-  status: 'ativa' | 'finalizada' | 'pausada';
-  created_at: string;
-  updated_at: string;
-  bilhetes?: Bilhete[];
-  bilhetes_vendidos?: number;
-  total_arrecadado?: number;
-}
-
-export interface Bilhete {
-  id: string;
-  rifa_id: string;
-  numero: number;
-  comprador_nome?: string;
-  cpf?: string;
-  telefone?: string;
-  status: 'disponivel' | 'pendente' | 'confirmado';
-  criado_em: string;
-}
-
-export interface Compra {
-  id: string;
-  bilhete_id: string;
-  status_validacao: 'pendente' | 'aprovado' | 'rejeitado';
-  comprovante_url?: string;
-  data_compra: string;
-  bilhete?: Bilhete;
-}
-
-export interface Relatorio {
-  id: string;
-  user_id: string;
-  campanha_id?: string;
-  total_arrecadado: number;
-  total_bilhetes: number;
-  criado_em: string;
+export interface RaffleNumber {
+  number: number;
+  status: 'available' | 'reserved' | 'sold';
+  userId?: string;
 }
 
 export interface AuthState {
   user: User | null;
-  loading: boolean;
+  isAuthenticated: boolean;
+  isLoading: boolean;
   error: string | null;
+}
+
+export interface Campaign {
+  id: string;
+  title: string;
+  description: string;
+  coverImage: string;
+  totalTickets: number;
+  ticketPrice: number;
+  featured: boolean;
+  status: 'draft' | 'active' | 'paused' | 'completed';
+  mode: 'simple' | 'combo';
+  comboRules?: {
+    baseValue?: number;
+    numbersPerValue?: number;
+    // Legacy support
+    buy?: number;
+    get?: number;
+  };
+  prizes: Prize[];
+  promotions: CampaignPromotion[];
+  winningTicket?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  pixKey?: string;
+}
+
+export interface Prize {
+  id: string;
+  title: string;
+  description: string;
+  imageUrl?: string;
+  position: number;
+  type: 'main' | 'biggest_buyer' | 'winning_ticket';
+}
+
+export interface CampaignPromotion {
+  id: string;
+  quantity: number;
+  price: number;
+  discount?: number;
+}
+
+export interface CampaignTicket {
+  id: string;
+  campaignId: string;
+  number: string; // Changed to string for random numbers like "003457"
+  isPrize: boolean;
+  prizeDescription?: string;
+  status: 'available' | 'reserved' | 'sold';
+  userId?: string;
+  purchaseDate?: string;
+  buyerInfo?: {
+    name: string;
+    cpf: string;
+    phone: string;
+  };
+}
+
+export interface BuyerRanking {
+  userId: string;
+  userName: string;
+  ticketsBought: number;
+  participationPercentage: number;
+}
+
+export interface Purchase {
+  id: string;
+  type: 'raffle' | 'campaign';
+  itemId: string;
+  buyerInfo: {
+    name: string;
+    cpf: string;
+    phone: string;
+  };
+  numbers: number[];
+  totalAmount: number;
+  pixKey: string;
+  status: 'pending' | 'completed' | 'failed';
+  createdAt: string;
+}
+
+export interface CampaignPurchase {
+  id: string;
+  campaignId: string;
+  buyerId: string;
+  quantity: number;
+  totalAmount: number;
+  ticketNumbers: string[];
+  paymentStatus: 'pending' | 'completed' | 'failed';
+  createdAt: string;
+  buyerInfo: {
+    name: string;
+    cpf: string;
+    phone: string;
+  };
+}
+
+// New interfaces for the admin panel
+export interface PendingPurchase {
+  id: string;
+  raffleId: string;
+  raffleName: string;
+  buyerName: string;
+  buyerPhone: string;
+  buyerCpf: string;
+  ticketCount: number;
+  totalAmount: number;
+  purchaseDate: string;
+  status: 'pending' | 'authorized' | 'rejected';
+  selectedNumbers: number[];
+  paymentMethod: 'pix' | 'credit_card';
+}
+
+export interface RaffleSettings {
+  id: string;
+  title: string;
+  description: string;
+  price: number;
+  totalNumbers: number;
+  drawDate: string;
+  status: 'draft' | 'active' | 'completed' | 'cancelled';
+  isCharity: boolean;
+  pixKey?: string;
+  autoApprove: boolean;
+  maxTicketsPerPurchase: number;
 }
