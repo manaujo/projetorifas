@@ -22,7 +22,7 @@ export class UserService {
           return null;
         }
         console.error('Erro ao buscar perfil:', error);
-        return null; // Retornar null em vez de throw para não quebrar o fluxo
+        throw error;
       }
       return data;
     } catch (error) {
@@ -36,13 +36,6 @@ export class UserService {
     try {
       console.log('Criando perfil para usuário:', userData);
       
-      // Verificar se o perfil já existe antes de criar
-      const existingProfile = await this.getProfile(userData.id);
-      if (existingProfile) {
-        console.log('Perfil já existe, retornando perfil existente');
-        return existingProfile;
-      }
-      
       const { data, error } = await supabase
         .from('users')
         .insert(userData)
@@ -51,16 +44,6 @@ export class UserService {
 
       if (error) {
         console.error('Erro ao criar perfil:', error);
-        
-        // Se o erro for de duplicação, tentar buscar o perfil existente
-        if (error.code === '23505') { // Unique violation
-          console.log('Perfil já existe (violação de unicidade), buscando perfil existente');
-          const existingProfile = await this.getProfile(userData.id);
-          if (existingProfile) {
-            return existingProfile;
-          }
-        }
-        
         throw error;
       }
       

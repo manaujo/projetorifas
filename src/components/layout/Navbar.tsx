@@ -1,41 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Ticket, User, LogOut, Menu, X, Home, Gift, PlusCircle, Megaphone, Crown, Settings } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { hasActivePlan } from '../../services/authService';
-import { StripeService } from '../../services/stripeService';
-import { getProductByPriceId } from '../../stripe-config';
 import { Button } from '../ui/Button';
 import { Logo } from '../Logo';
 
 export const Navbar: React.FC = () => {
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, profile, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [userPlan, setUserPlan] = useState<string | null>(null);
   const location = useLocation();
   
   const toggleMenu = () => setMenuOpen(!menuOpen);
   const closeMenu = () => setMenuOpen(false);
   
-  const canCreateContent = user && (hasActivePlan(user) || user.role === 'admin');
-
-  useEffect(() => {
-    const fetchUserPlan = async () => {
-      if (isAuthenticated) {
-        try {
-          const subscription = await StripeService.getUserSubscription();
-          if (subscription?.price_id) {
-            const product = getProductByPriceId(subscription.price_id);
-            setUserPlan(product?.name || null);
-          }
-        } catch (error) {
-          console.error('Error fetching user plan:', error);
-        }
-      }
-    };
-
-    fetchUserPlan();
-  }, [isAuthenticated]);
+  const canCreateContent = profile?.plano;
   
   return (
     <header className="bg-white shadow-sm fixed w-full top-0 z-50">
@@ -123,13 +101,7 @@ export const Navbar: React.FC = () => {
           <div className="hidden md:flex items-center space-x-4">
             {isAuthenticated ? (
               <div className="flex items-center space-x-2">
-                {userPlan && (
-                  <div className="bg-primary-100 text-primary-700 px-3 py-1 rounded-full text-sm font-medium">
-                    Plano {userPlan}
-                  </div>
-                )}
-                
-                {!canCreateContent && user?.role !== 'admin' && (
+                {!canCreateContent && (
                   <Link to="/precos">
                     <Button variant="secondary" leftIcon={<Crown size={16} />} size="sm">
                       Upgrade
@@ -162,7 +134,7 @@ export const Navbar: React.FC = () => {
                     Minha Conta
                   </Button>
                 </Link>
-                <Button variant="outline" leftIcon={<LogOut size={16} />} onClick={logout}>
+                <Button variant="outline" leftIcon={<LogOut size={16} />} onClick={signOut}>
                   Sair
                 </Button>
               </div>
@@ -273,15 +245,7 @@ export const Navbar: React.FC = () => {
             <div className="mt-3 px-2 space-y-1">
               {isAuthenticated ? (
                 <>
-                  {userPlan && (
-                    <div className="px-3 py-2">
-                      <div className="bg-primary-100 text-primary-700 px-3 py-1 rounded-full text-sm font-medium text-center">
-                        Plano {userPlan}
-                      </div>
-                    </div>
-                  )}
-                  
-                  {!canCreateContent && user?.role !== 'admin' && (
+                  {!canCreateContent && (
                     <Link 
                       to="/precos" 
                       className="block px-3 py-2 rounded-md text-base font-medium text-gold-600 hover:bg-gold-50"
@@ -340,7 +304,7 @@ export const Navbar: React.FC = () => {
                     </div>
                   </Link>
                   <button
-                    onClick={() => { logout(); closeMenu(); }}
+                    onClick={() => { signOut(); closeMenu(); }}
                     className="w-full text-left block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-100"
                   >
                     <div className="flex items-center">
